@@ -78,6 +78,21 @@ HTML = r"""<!DOCTYPE html>
     .kpis { display:grid; grid-template-columns:repeat(5, minmax(130px, 1fr)); gap:8px; margin:14px 0 22px; }
     .kpi { background:var(--surface); border:1px solid var(--line); padding:13px 14px; border-radius:3px; font:10px 'Cascadia Code', Consolas, monospace; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
     .kpi b { display:block; font:500 21px Georgia, 'Times New Roman', serif; color:var(--txt); margin-bottom:5px; text-transform:none; letter-spacing:0; }
+    .overview { display:grid; grid-template-columns:minmax(0, 1.65fr) minmax(280px, 1fr); gap:14px; margin:0 0 22px; }
+    .command-card { position:relative; overflow:hidden; background:linear-gradient(115deg, #123a3b 0%, #10262e 54%, #16253c 100%); border:1px solid #397b7d; border-radius:4px; padding:24px; }
+    .command-card::after { content:''; position:absolute; width:260px; height:260px; right:-100px; top:-130px; border:1px solid rgba(93,216,223,.32); border-radius:50%; box-shadow:0 0 0 24px rgba(93,216,223,.06), 0 0 0 48px rgba(93,216,223,.035); }
+    .eyebrow { color:var(--cyan); font:10px 'Cascadia Code', Consolas, monospace; letter-spacing:.18em; text-transform:uppercase; }
+    .command-card h2 { max-width:650px; margin:12px 0 8px; color:var(--txt); font:500 clamp(24px, 3vw, 34px)/1.05 Georgia, 'Times New Roman', serif; }
+    .command-card p { max-width:650px; color:#b4d2d0; font-size:13px; line-height:1.5; }
+    .command-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; }
+    .signal { color:var(--ok); font:11px 'Cascadia Code', Consolas, monospace; float:right; }
+    .signal-dot { display:inline-block; width:7px; height:7px; margin-right:6px; border-radius:50%; background:var(--ok); box-shadow:0 0 12px var(--ok); animation:pulse 1.5s infinite; }
+    .signal-bar { height:4px; max-width:650px; margin-top:22px; overflow:hidden; background:#16363b; border-radius:4px; }
+    .signal-bar i { display:block; width:38%; height:100%; background:linear-gradient(90deg, transparent, var(--cyan), var(--ok), transparent); animation:scan 2.8s ease-in-out infinite; }
+    .posture-card { background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:20px; }
+    .posture-card h2 { margin:10px 0 18px; font-size:17px; font-weight:500; }
+    .posture-item { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-top:1px solid var(--line); color:var(--muted); font:11px 'Cascadia Code', Consolas, monospace; }
+    .posture-item strong { color:var(--ok); font-weight:600; }
     .mitre { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:8px; }
     .tech { border:1px solid var(--line); padding:10px; border-radius:3px; background:var(--surface); font-size:12px; }
     .tech code { color:var(--accent); }
@@ -92,9 +107,10 @@ HTML = r"""<!DOCTYPE html>
     .dot.up { background:var(--ok); box-shadow:0 0 6px var(--ok); }
     .dot.down { background:var(--bad); box-shadow:0 0 6px var(--bad); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    @keyframes scan { 0%{transform:translateX(-120%)} 55%,100%{transform:translateX(290%)} }
     .health-meta { margin-left:auto; color:var(--muted); font-size:10px; }
     .feed { font:11px/1.6 'Cascadia Code', Consolas, monospace; background:#071216; border:1px solid #1c363c; border-radius:3px; padding:10px; min-height:80px; max-height:220px; overflow:auto; white-space:pre-wrap; margin-top:10px; }
-    @media (max-width:800px) { .kpis { grid-template-columns:repeat(2, 1fr); } .health-meta { width:100%; margin-left:0; } }
+    @media (max-width:800px) { .overview { grid-template-columns:1fr; } .kpis { grid-template-columns:repeat(2, 1fr); } .health-meta { width:100%; margin-left:0; } }
     @media (max-width:480px) { .top { padding-top:22px; } .kpis { grid-template-columns:1fr 1fr; } .kpi b { font-size:18px; } }
   </style>
 </head>
@@ -124,6 +140,25 @@ HTML = r"""<!DOCTYPE html>
       <div class="kpi"><b>BOLA deny</b>object-level auth</div>
       <div class="kpi"><b>NCR·DN·WNX</b>profils DAB lab</div>
     </div>
+    <section class="overview" aria-label="Synthèse opérationnelle">
+      <div class="command-card">
+        <span class="eyebrow">Mission control <span class="signal"><i class="signal-dot"></i>signal nominal</span></span>
+        <h2>La confiance se pilote en temps réel.</h2>
+        <p>Orchestrez un paiement, observez le risque, puis déclenchez une réponse SOC depuis la même surface.</p>
+        <div class="command-actions">
+          <button class="act" onclick="openSoc()">Ouvrir la mission SOC</button>
+          <button class="act warn" onclick="fraud(7500)">Simuler un risque</button>
+        </div>
+        <div class="signal-bar"><i></i></div>
+      </div>
+      <div class="posture-card">
+        <span class="eyebrow">Security posture</span>
+        <h2>Garde-fous actifs</h2>
+        <div class="posture-item"><span>Card data boundary</span><strong>ENFORCED</strong></div>
+        <div class="posture-item"><span>Object-level auth</span><strong>BOLA DENY</strong></div>
+        <div class="posture-item"><span>Event observability</span><strong>LIVE</strong></div>
+      </div>
+    </section>
 
     <section id="ops">
       <div class="grid">
@@ -299,6 +334,11 @@ K8s: Kyverno + OPA + Falco + Vault + default-deny
 <script>
 const $ = id => document.getElementById(id);
 function line(id, msg, cls='info'){ const el=$(id); el.innerHTML += '<span class="'+cls+'">'+msg+'</span>\\n'; el.scrollTop = el.scrollHeight; }
+function activateTab(tab){
+  const selected = document.querySelector('nav button[data-tab="'+tab+'"]');
+  if(selected) selected.click();
+}
+function openSoc(){ activateTab('soc'); evaluate(); }
 document.querySelectorAll('nav button').forEach(btn => btn.onclick = () => {
   document.querySelectorAll('nav button').forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
   btn.classList.add('active');
