@@ -99,6 +99,24 @@ HTML = r"""<!DOCTYPE html>
     table { width:100%; border-collapse:collapse; font-size:12px; }
     th, td { text-align:left; padding:8px; border-bottom:1px solid var(--line); }
     .flow { font:12px/1.6 'Cascadia Code', Consolas, monospace; background:#071216; padding:14px; border-radius:3px; border:1px solid var(--line); overflow:auto; }
+    .arch-head { display:flex; justify-content:space-between; gap:20px; align-items:flex-end; margin-bottom:16px; }
+    .arch-head h2 { margin:8px 0 6px; font:500 clamp(24px, 3vw, 34px)/1.05 Georgia, 'Times New Roman', serif; }
+    .arch-head p { max-width:700px; color:var(--muted); font-size:13px; line-height:1.5; }
+    .arch-badge { flex:0 0 auto; padding:10px 12px; color:var(--cyan); border:1px solid #397b7d; border-radius:3px; font:10px 'Cascadia Code', Consolas, monospace; letter-spacing:.08em; }
+    .arch-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; }
+    .arch-lane { background:linear-gradient(145deg, rgba(18,37,43,.98), rgba(8,22,27,.98)); border:1px solid var(--line); border-radius:4px; padding:18px; }
+    .arch-lane:nth-child(2) { border-color:#397b7d; } .arch-lane:nth-child(3) { border-color:#725d37; } .arch-lane:nth-child(4) { border-color:#465f8a; }
+    .arch-lane-title { display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid var(--line); }
+    .arch-lane-title strong { color:var(--cyan); font:11px 'Cascadia Code', Consolas, monospace; letter-spacing:.12em; }
+    .arch-lane-title small { color:var(--muted); font:10px 'Cascadia Code', Consolas, monospace; }
+    .arch-flow { display:flex; align-items:stretch; gap:8px; margin-top:16px; min-height:120px; }
+    .arch-node { flex:1; min-width:0; padding:13px; background:#102c34; border:1px solid #2b5a61; border-radius:3px; }
+    .arch-node strong { display:block; color:var(--txt); font:500 14px Georgia, 'Times New Roman', serif; }
+    .arch-node span { display:block; margin-top:7px; color:var(--muted); font:10px/1.4 'Cascadia Code', Consolas, monospace; }
+    .arch-node em { display:inline-block; margin-top:10px; color:var(--ok); font:9px 'Cascadia Code', Consolas, monospace; font-style:normal; }
+    .arch-arrow { align-self:center; color:var(--ok); font:20px Georgia, 'Times New Roman', serif; animation:flowPulse 1.8s ease-in-out infinite; }
+    .arch-foot { margin-top:14px; padding:12px 14px; color:var(--muted); background:#071216; border-left:3px solid var(--ok); font:11px/1.5 'Cascadia Code', Consolas, monospace; }
+    @keyframes flowPulse { 0%,100%{opacity:.35; transform:translateX(0)} 50%{opacity:1; transform:translateX(3px)} }
     .statusline { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin:0 0 4px; padding:11px 14px; background:var(--surface); border:1px solid var(--line); border-radius:3px; font-size:11px; }
     .statusline .live { color:var(--ok); font-weight:bold; letter-spacing:.14em; animation:pulse 1.8s infinite; }
     .svc { color:var(--muted); }
@@ -110,7 +128,7 @@ HTML = r"""<!DOCTYPE html>
     @keyframes scan { 0%{transform:translateX(-120%)} 55%,100%{transform:translateX(290%)} }
     .health-meta { margin-left:auto; color:var(--muted); font-size:10px; }
     .feed { font:11px/1.6 'Cascadia Code', Consolas, monospace; background:#071216; border:1px solid #1c363c; border-radius:3px; padding:10px; min-height:80px; max-height:220px; overflow:auto; white-space:pre-wrap; margin-top:10px; }
-    @media (max-width:800px) { .overview { grid-template-columns:1fr; } .kpis { grid-template-columns:repeat(2, 1fr); } .health-meta { width:100%; margin-left:0; } }
+    @media (max-width:800px) { .overview { grid-template-columns:1fr; } .arch-grid { grid-template-columns:1fr; } .arch-head { align-items:flex-start; flex-direction:column; } .kpis { grid-template-columns:repeat(2, 1fr); } .health-meta { width:100%; margin-left:0; } }
     @media (max-width:480px) { .top { padding-top:22px; } .kpis { grid-template-columns:1fr 1fr; } .kpi b { font-size:18px; } }
   </style>
 </head>
@@ -315,20 +333,29 @@ HTML = r"""<!DOCTYPE html>
     </section>
 
     <section id="arch" hidden>
-      <pre class="flow">Internet
-  → NGINX (WAF / rate-limit / TLS 1.3)
-    → Keycloak (OAuth2 client_credentials, OIDC admin)
-      → Gateway FastAPI (JWT JWKS, BOLA, correlation-id)
-        → Tokenization  [AES-256-GCM vault, NO CVV]
-        → Fraud         [velocity + Isolation Forest → 3DS2]
-        → Payment       [capture simulée, webhook HMAC]
-          → Adapter mTLS → GnuCOBOL VALIDATE (solde compte)
-      → Canal DAB : KaNest-lite --ISO 8583--> atm-adapter --fraude+COBOL--> 0210
-      → MXA (technique) / VTE (avis) / ARGAUS / APTRA / ALM + PV
-      → JSONL events ──► Sigma engine ──► MITRE / runbooks
-      → Prometheus / Grafana
-K8s: Kyverno + OPA + Falco + Vault + default-deny
-      </pre>
+      <div class="arch-head">
+        <div><span class="eyebrow">System map / trust boundaries</span><h2>Architecture en mouvement.</h2><p>Chaque décision traverse une frontière de confiance explicite, puis devient un événement observable et actionnable.</p></div>
+        <span class="arch-badge">4 PLANES · ZERO TRUST</span>
+      </div>
+      <div class="arch-grid">
+        <div class="arch-lane">
+          <div class="arch-lane-title"><strong>01 / EDGE &amp; IDENTITY</strong><small>AUTHENTICATE</small></div>
+          <div class="arch-flow"><div class="arch-node"><strong>Merchant</strong><span>API client</span><em>OAUTH2</em></div><i class="arch-arrow">→</i><div class="arch-node"><strong>NGINX WAF</strong><span>TLS 1.3 · rate limit</span><em>EDGE</em></div><i class="arch-arrow">→</i><div class="arch-node"><strong>Keycloak</strong><span>JWT · JWKS · MFA</span><em>TRUST</em></div></div>
+        </div>
+        <div class="arch-lane">
+          <div class="arch-lane-title"><strong>02 / PAYMENT PLANE</strong><small>DECIDE</small></div>
+          <div class="arch-flow"><div class="arch-node"><strong>Gateway</strong><span>BOLA · corr-id</span><em>ORCHESTRATE</em></div><i class="arch-arrow">→</i><div class="arch-node"><strong>Tokenization</strong><span>AES-GCM · no CVV</span><em>CDE</em></div><i class="arch-arrow">→</i><div class="arch-node"><strong>Fraud + 3DS</strong><span>Risk · challenge</span><em>SCA</em></div></div>
+        </div>
+        <div class="arch-lane">
+          <div class="arch-lane-title"><strong>03 / SOC PLANE</strong><small>RESPOND</small></div>
+          <div class="arch-flow"><div class="arch-node"><strong>JSONL events</strong><span>redacted · traced</span><em>OBSERVE</em></div><i class="arch-arrow">→</i><div class="arch-node"><strong>Sigma</strong><span>MITRE ATT&amp;CK</span><em>DETECT</em></div><i class="arch-arrow">→</i><div class="arch-node"><strong>SOAR</strong><span>block IP · TheHive</span><em>CONTAIN</em></div></div>
+        </div>
+        <div class="arch-lane">
+          <div class="arch-lane-title"><strong>04 / PLATFORM PLANE</strong><small>ENFORCE</small></div>
+          <div class="arch-flow"><div class="arch-node"><strong>GitHub Actions</strong><span>tests · SAST · SCA</span><em>GATE</em></div><i class="arch-arrow">→</i><div class="arch-node"><strong>GHCR</strong><span>SBOM · Cosign</span><em>SUPPLY CHAIN</em></div><i class="arch-arrow">→</i><div class="arch-node"><strong>Kubernetes</strong><span>Kyverno · Falco · Vault</span><em>RUNTIME</em></div></div>
+        </div>
+      </div>
+      <div class="arch-foot">Payment path: Gateway → Tokenization → Fraud / 3DS → Payment → mTLS adapter → GnuCOBOL. Security path: every decision → JSONL → Sigma → MITRE → SOAR.</div>
     </section>
   </main>
 <script>
