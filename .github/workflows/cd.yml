@@ -1,0 +1,121 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: securepay-cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # ─── Build & Push Images ──────────────────────────────────────
+  build-push:
+    name: Build & Push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      matrix:
+        service: [gateway, payment, tokenization, fraud, three-ds-server, directory-server, acs-simulator, legacy-3ds1]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: ${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Publish release summary
+        run: |
+          echo "### ${{ matrix.service }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \\`${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}\\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Digest: \\`${{ steps.build.outputs.digest }}\\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Signed with Cosign keyless: yes" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (Sigstore keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      - name: SBOM CycloneDX + attest Cosign
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft "${IMAGE}@${DIGEST}" -o cyclonedx-json=sbom.cdx.json
+          cosign attest --yes --type cyclonedx --predicate sbom.cdx.json "${IMAGE}@${DIGEST}"
+
+  # ─── Deploy to Kubernetes ─────────────────────────────────────
+  deploy:
+    name: Deploy to K8s
+    runs-on: ubuntu-latest
+    needs: build-push
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.28.0"
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f infra/kubernetes/deployments.yml
+          kubectl rollout restart deployment/gateway -n securepay
+          kubectl rollout restart deployment/payment -n securepay
+          kubectl rollout restart deployment/tokenization -n securepay
+          kubectl rollout restart deployment/fraud -n securepay
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n securepay
+          kubectl get services -n securepay

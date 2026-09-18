@@ -1,0 +1,22 @@
+id: securepay-security-headers
+info:
+  name: SecurePay — en-têtes de sécurité
+  author: securepay-lab
+  severity: medium
+  description: Vérifie HSTS / X-Content-Type-Options / X-Frame-Options sur la gateway lab.
+  tags: securepay,owasp,headers
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/health"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: header
+        words:
+          - "X-Content-Type-Options"
+        negative: true
+    metadata:
+      note: "Si ce template matche, un en-tête manque — corriger shared/http.py"

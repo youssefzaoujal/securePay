@@ -1,0 +1,1 @@
+"""Legacy 3DS 1.0 MPI — pédagogie : pourquoi 2.0 existe."""

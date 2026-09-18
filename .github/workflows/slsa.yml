@@ -1,0 +1,42 @@
+# SLSA provenance (lab → forme niveau 2/3 sur tags)
+# Le générateur officiel SLSA n'est déclenché que sur un tag v* :
+# un vrai builder hébergé SLSA n'est pas émulé sur chaque PR.
+
+name: SLSA provenance
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Hash artefacts (SBOM)
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+      - name: Encode SHA256 (base64, un seul sujet)
+        id: hash
+        run: |
+          echo "hashes=$(sha256sum sbom.cdx.json | base64 -w0)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-for-provenance
+          path: sbom.cdx.json
+
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: true

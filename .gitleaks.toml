@@ -1,0 +1,13 @@
+title = "SecurePay"
+[allowlist]
+description = "Lab placeholders — never production secrets"
+paths = [
+  '''.env.example''',
+  '''infra/keycloak/realm-export.json''',
+  '''cspm/fixtures/''',
+]
+regexes = [
+  '''CHANGE_ME''',
+  '''lab-webhook-secret''',
+  '''lab-root-token''',
+]

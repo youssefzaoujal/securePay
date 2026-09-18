@@ -1,0 +1,124 @@
+{
+  "rules": [
+    {
+      "id": 100100,
+      "level": 12,
+      "description": "SecurePay: Card Testing Attack Detected",
+      "groups": ["pci_dss", "payment_security", "carding"],
+      "mitre": {
+        "id": ["T1657"],
+        "tactic": ["impact"]
+      },
+      "match": {
+        "event_type": "carding_summary",
+        "detection_signal": "high_volume_failed_payments"
+      },
+      "options": {
+        "alert_by": "source_ip",
+        "frequency_threshold": 1,
+        "timeout": 300
+      },
+      "action": [
+        "block_ip_waf",
+        "alert_merchant",
+        "create_incident"
+      ]
+    },
+    {
+      "id": 100200,
+      "level": 10,
+      "description": "SecurePay: Credential Stuffing Attack Detected",
+      "groups": ["pci_dss", "authentication", "brute_force"],
+      "mitre": {
+        "id": ["T1110.004"],
+        "tactic": ["credential-access"]
+      },
+      "match": {
+        "event_type": "credential_stuffing_summary",
+        "detection_signal": "rapid_auth_failures"
+      },
+      "options": {
+        "alert_by": "source_ip",
+        "frequency_threshold": 1,
+        "timeout": 300
+      },
+      "action": [
+        "block_ip_waf",
+        "enable_progressive_delay",
+        "alert_security_team"
+      ]
+    },
+    {
+      "id": 100300,
+      "level": 10,
+      "description": "SecurePay: BOLA Attack Attempt Detected",
+      "groups": ["pci_dss", "api_security", "authorization"],
+      "mitre": {
+        "id": ["T1213"],
+        "tactic": ["collection"]
+      },
+      "match": {
+        "event_type": "bola_summary",
+        "detection_signal": "cross_merchant_access_denied"
+      },
+      "options": {
+        "alert_by": "source_ip",
+        "frequency_threshold": 1,
+        "timeout": 600
+      },
+      "action": [
+        "log_full_request",
+        "alert_merchant",
+        "review_access_patterns"
+      ]
+    },
+    {
+      "id": 100400,
+      "level": 12,
+      "description": "SecurePay: Fraud Score Anomaly Detected",
+      "groups": ["pci_dss", "payment_security", "fraud"],
+      "mitre": {
+        "id": ["T1657"],
+        "tactic": ["impact"]
+      },
+      "match": {
+        "event_type": "fraud_spike_summary",
+        "detection_signal": "high_fraud_score_cluster"
+      },
+      "options": {
+        "alert_by": "merchant_id",
+        "frequency_threshold": 1,
+        "timeout": 900
+      },
+      "action": [
+        "pause_merchant",
+        "alert_fraud_team",
+        "review_transactions"
+      ]
+    },
+    {
+      "id": 100500,
+      "level": 10,
+      "description": "SecurePay: JWT Replay Detected",
+      "groups": ["pci_dss", "authentication"],
+      "mitre": { "id": ["T1550.001"], "tactic": ["credential-access"] },
+      "match": { "event_type": "jwt_replay", "status": "blocked" }
+    },
+    {
+      "id": 100600,
+      "level": 10,
+      "description": "SecurePay: SQL Injection Probe",
+      "groups": ["pci_dss", "application"],
+      "mitre": { "id": ["T1190"], "tactic": ["initial-access"] },
+      "match": { "event_type": "injection_probe" }
+    },
+    {
+      "id": 100700,
+      "level": 15,
+      "description": "SecurePay: PAN Leakage In Logs (PCI)",
+      "groups": ["pci_dss", "req3"],
+      "mitre": { "id": ["T1552"], "tactic": ["credential-access"] },
+      "match": { "event_type": "pan_leakage" }
+    }
+  ]
+}

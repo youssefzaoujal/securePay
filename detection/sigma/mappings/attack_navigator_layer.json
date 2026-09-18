@@ -1,0 +1,27 @@
+{
+  "name": "SecurePay ATT&CK coverage",
+  "versions": { "attack": "15", "navigator": "4.9" },
+  "domain": "enterprise-attack",
+  "description": "Techniques couvertes par Sigma + Falco + contrôles applicatifs (lab).",
+  "filters": { "platforms": ["Linux", "Containers", "IaaS"] },
+  "sorting": 0,
+  "layout": { "layout": "side", "aggregateFunction": "average", "showID": true, "showName": true },
+  "hideDisabled": false,
+  "techniques": [
+    { "techniqueID": "T1657", "score": 100, "comment": "card_testing_attack.yml + velocity" },
+    { "techniqueID": "T1110.004", "score": 100, "comment": "credential_stuffing.yml" },
+    { "techniqueID": "T1213", "score": 100, "comment": "bola_attack.yml + object-level auth" },
+    { "techniqueID": "T1550.001", "score": 100, "comment": "jwt_replay.yml + jti cache" },
+    { "techniqueID": "T1190", "score": 80, "comment": "sql_injection.yml + ORM" },
+    { "techniqueID": "T1552", "score": 90, "comment": "pan_leakage.yml + redaction" },
+    { "techniqueID": "T1499.002", "score": 80, "comment": "rate_limit_abuse.yml" },
+    { "techniqueID": "T1059", "score": 90, "comment": "Falco shell in container" },
+    { "techniqueID": "T1048", "score": 70, "comment": "Falco unexpected egress" },
+    { "techniqueID": "T1496", "score": 70, "comment": "Falco miner + fraud spike" }
+  ],
+  "gradient": { "colors": ["#ffffff", "#66b1ff", "#1565c0"], "minValue": 0, "maxValue": 100 },
+  "legendItems": [
+    { "label": "Détecté + prévenu", "color": "#1565c0" },
+    { "label": "Détecté", "color": "#66b1ff" }
+  ]
+}

@@ -1,0 +1,15 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/securepay/*.jsonl
+    json.keys_under_root: true
+    json.add_error_key: true
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  index: "securepay-events-%{+yyyy.MM.dd}"
+
+setup.ilm.enabled: false
+setup.template.name: "securepay"
+setup.template.pattern: "securepay-*"

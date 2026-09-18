@@ -1,0 +1,36 @@
+{
+  "decoders": [
+    {
+      "name": "securepay-json",
+      "order": "event_type",
+      "prematch": [
+        {
+          "definition": "source",
+          "regex": "\"source\"\\s*:\\s*\"securepay"
+        }
+      ],
+      "program": [
+        {
+          "definition": "event_type",
+          "regex": "\"event_type\"\\s*:\\s*\"(\\w+)\""
+        },
+        {
+          "definition": "scenario",
+          "regex": "\"scenario\"\\s*:\\s*\"(\\w+)\""
+        },
+        {
+          "definition": "source_ip",
+          "regex": "\"source_ip\"\\s*:\\s*\"([\\d\\.]+)\""
+        },
+        {
+          "definition": "merchant_id",
+          "regex": "\"merchant_id\"\\s*:\\s*\"(\\w+)\""
+        },
+        {
+          "definition": "status",
+          "regex": "\"status\"\\s*:\\s*\"(\\w+)\""
+        }
+      ]
+    }
+  ]
+}

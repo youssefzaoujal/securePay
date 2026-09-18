@@ -1,0 +1,9 @@
+vendor: dn
+family: "Diebold Nixdorf DN Series"
+notes: "DN = Diebold Nixdorf post-fusion. Profil distinct de diebold historique."
+terminal_id_prefix: "DNX"
+timeout_ms: 8000
+pan_field: 2
+amount_field: 4
+pin_block: "ISO-0"
+mxa_device_code: "DN-SERIES"

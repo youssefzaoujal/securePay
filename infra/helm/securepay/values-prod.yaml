@@ -1,0 +1,111 @@
+# =============================================================================
+# SecurePay Helm Chart — overlays production
+#   helm -f values.yaml -f values-prod.yaml -f values-prod-<region>.yaml
+#   helmfile -e prod apply            (voir infra/helmfile.yaml)
+# =============================================================================
+
+global:
+  name: securepay
+  environment: prod
+  imageRegistry: ghcr.io/securepay
+
+gateway:
+  replicaCount: 4
+  image:
+    repository: securepay/gateway
+    tag: latest              # en prod : tag SLA (cosign-verified), jamais :latest
+    pullPolicy: Always
+  autoscaling:
+    enabled: true
+    minReplicas: 4
+    maxReplicas: 30
+    targetCPUUtilization: 65
+  resources:
+    requests: { memory: "256Mi", cpu: "200m" }
+    limits: { memory: "1Gi", cpu: "1000m" }
+
+payment:
+  replicaCount: 4
+  image:
+    repository: securepay/payment
+    tag: latest
+  resources:
+    requests: { memory: "256Mi", cpu: "200m" }
+    limits: { memory: "1Gi", cpu: "1000m" }
+
+tokenization:
+  replicaCount: 3
+  image:
+    repository: securepay/tokenization
+    tag: latest
+  resources:
+    requests: { memory: "256Mi", cpu: "200m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+
+fraud:
+  replicaCount: 3
+  image:
+    repository: securepay/fraud
+    tag: latest
+  resources:
+    requests: { memory: "512Mi", cpu: "500m" }
+    limits: { memory: "2Gi", cpu: "2000m" }
+
+threeDsServer:
+  image:
+    repository: securepay/three-ds-server
+    tag: latest
+  resources:
+    requests: { memory: "256Mi", cpu: "200m" }
+    limits: { memory: "1Gi", cpu: "1000m" }
+
+directoryServer:
+  image:
+    repository: securepay/directory-server
+    tag: latest
+
+acsSimulator:
+  image:
+    repository: securepay/acs-simulator
+    tag: latest
+
+legacy3ds1:
+  image:
+    repository: securepay/legacy-3ds1
+    tag: latest
+
+# Infrastructure managée hors cluster (Terraform) : on fournit les endpoints.
+postgres:
+  host: securepay-pg.cluster-xyz.eu-west-1.rds.amazonaws.com
+  port: 5432
+  database: securepay
+
+redis:
+  host: securepay-redis.xyz.0001.euw1.cache.amazonaws.com
+  port: 6379
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+
+security:
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+  networkPolicy:
+    enabled: true
+
+# Migrations : job Helm hook pre-install/pre-upgrade (voir templates/migration.yaml)
+migrations:
+  enabled: true
+  image: { repository: securepay/payment, tag: latest }
+  backoffLimit: 2

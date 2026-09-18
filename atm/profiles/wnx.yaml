@@ -1,0 +1,9 @@
+vendor: wnx
+family: "Wincor Nixdorf ProCash / CINEO"
+notes: "WNX = Wincor Nixdorf (avant fusion Diebold Nixdorf)."
+terminal_id_prefix: "WNX"
+timeout_ms: 9000
+pan_field: 2
+amount_field: 4
+pin_block: "ISO-0"
+mxa_device_code: "WNX-PC"

@@ -1,0 +1,1 @@
+"""Kafka event bus — paiement/ledger/fraude temps réel (alternative RabbitMQ)."""

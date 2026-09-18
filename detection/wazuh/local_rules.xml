@@ -1,0 +1,28 @@
+<!-- Règles Wazuh locales — pattern EDR lab (processus / fichiers sensibles).
+     Copier vers /var/ossec/etc/rules/local_rules.xml sur le manager. -->
+<group name="securepay,pci_dss,">
+  <rule id="100801" level="12">
+    <decoded_as>json</decoded_as>
+    <field name="event_type">jwt_replay</field>
+    <description>SecurePay EDR-like: JWT replay blocked</description>
+    <mitre>
+      <id>T1550.001</id>
+    </mitre>
+  </rule>
+  <rule id="100802" level="12">
+    <decoded_as>json</decoded_as>
+    <field name="event_type">carding_summary</field>
+    <description>SecurePay EDR-like: card testing campaign</description>
+    <mitre>
+      <id>T1657</id>
+    </mitre>
+  </rule>
+  <rule id="100803" level="10">
+    <decoded_as>json</decoded_as>
+    <field name="event_type">authorization_error</field>
+    <description>SecurePay EDR-like: BOLA / object-level auth deny</description>
+    <mitre>
+      <id>T1213</id>
+    </mitre>
+  </rule>
+</group>

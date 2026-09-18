@@ -1,0 +1,182 @@
+{
+  "realm": "securepay",
+  "enabled": true,
+  "displayName": "SecurePay",
+  "displayNameHtml": "<strong>SecurePay</strong>",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "failureFactor": 5,
+  "passwordPolicy": "length(8) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1)",
+  "accessTokenLifespan": 1800,
+  "ssoSessionIdleTimeout": 1800,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrateur système SecurePay",
+        "composite": false
+      },
+      {
+        "name": "merchant",
+        "description": "Marchand autorisé à effectuer des transactions",
+        "composite": false
+      },
+      {
+        "name": "viewer",
+        "description": "Consultation en lecture seule des transactions",
+        "composite": false
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "merchant-api",
+      "name": "Merchant API (Client Credentials)",
+      "description": "Client pour les appels machine-à-machine des marchands",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "CHANGE_ME_IN_PRODUCTION",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email"
+      ],
+      "protocolMappers": [
+        {
+          "name": "merchant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "config": {
+            "claim.name": "merchant_id",
+            "claim.value": "merchant-api",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "merchant-role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "config": {
+            "claim.name": "realm_access.roles",
+            "claim.value": "[\"merchant\"]",
+            "jsonType.label": "JSON",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "admin-dashboard",
+      "name": "Admin Dashboard (Authorization Code + PKCE)",
+      "description": "Client pour l'interface d'administration web",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/callback",
+        "http://localhost:5173/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@securepay.dev",
+      "firstName": "Admin",
+      "lastName": "SecurePay",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["admin"],
+      "clientRoles": {
+        "merchant-api": ["merchant"],
+        "admin-dashboard": ["admin"]
+      }
+    },
+    {
+      "username": "merchant1",
+      "email": "merchant1@securepay.dev",
+      "firstName": "Merchant",
+      "lastName": "One",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Merchant123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["merchant"],
+      "attributes": {
+        "merchant_id": ["MERCH_001"]
+      }
+    },
+    {
+      "username": "merchant2",
+      "email": "merchant2@securepay.dev",
+      "firstName": "Merchant",
+      "lastName": "Two",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Merchant123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["merchant"],
+      "attributes": {
+        "merchant_id": ["MERCH_002"]
+      }
+    },
+    {
+      "username": "viewer1",
+      "email": "viewer1@securepay.dev",
+      "firstName": "Viewer",
+      "lastName": "One",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Viewer123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["viewer"]
+    }
+  ]
+}

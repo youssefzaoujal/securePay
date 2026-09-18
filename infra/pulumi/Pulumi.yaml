@@ -1,0 +1,5 @@
+{
+  "name": "securepay-pulumi-lab",
+  "runtime": "python",
+  "description": "Stub Pulumi SecurePay (S3 privé + chiffrement). Lab uniquement."
+}

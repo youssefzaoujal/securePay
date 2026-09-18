@@ -1,0 +1,35 @@
+groups:
+  - name: securepay-platform
+    rules:
+      - alert: HighApiErrorRate
+        expr: |
+          sum(rate(securepay_transactions_total{status="failed"}[5m]))
+          /
+          clamp_min(sum(rate(securepay_transactions_total[5m])), 0.001)
+          > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taux d'échec API > 20 % (5m)"
+      - alert: SigmaEngineSlow
+        expr: histogram_quantile(0.95, sum(rate(securepay_sigma_eval_seconds_bucket[5m])) by (le)) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence p95 Sigma > 2s"
+      - alert: SoarBlocksRising
+        expr: securepay_soar_blocks > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Plus de 5 IP bloquées — possible campagne carding"
+      - alert: DetectionDown
+        expr: up{job="detection"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Le moteur Sigma ne répond plus"

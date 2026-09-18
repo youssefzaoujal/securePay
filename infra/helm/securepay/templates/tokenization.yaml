@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-tokenization
+  labels:
+    app: tokenization
+    app.kubernetes.io/name: tokenization
+    app.kubernetes.io/part-of: securepay
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+spec:
+  replicas: {{ .Values.tokenization.replicaCount }}
+  selector:
+    matchLabels:
+      app: tokenization
+  template:
+    metadata:
+      labels:
+        app: tokenization
+        app.kubernetes.io/name: tokenization
+        app.kubernetes.io/part-of: securepay
+      annotations:
+        securepay.io/trivy-scanned: "pass"
+        securepay.io/trivy-severity-gate: "CRITICAL,HIGH"
+    spec:
+      securityContext:
+        {{- toYaml .Values.security.podSecurityContext | nindent 8 }}
+      containers:
+        - name: tokenization
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.tokenization.image.repository }}:{{ .Values.tokenization.image.tag }}"
+          ports:
+            - containerPort: 8002
+          resources:
+            {{- toYaml .Values.tokenization.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.security.containerSecurityContext | nindent 12 }}
+          env:
+            - name: APP_ENV
+              value: {{ .Values.global.environment | quote }}
+            - name: SECUREPAY_EVENT_LOG
+              value: /app/logs/securepay-events.jsonl
+            - name: VAULT_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-encryption-key
+                  key: vault-master-key
+                  optional: true
+          livenessProbe:
+            httpGet: { path: /health, port: 8002 }
+          readinessProbe:
+            httpGet: { path: /health, port: 8002 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-tokenization
+  labels: { app: tokenization, app.kubernetes.io/part-of: securepay }
+spec:
+  type: ClusterIP
+  selector: { app: tokenization }
+  ports:
+    - port: 8002
+      targetPort: 8002

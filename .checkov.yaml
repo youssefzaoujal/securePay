@@ -1,0 +1,8 @@
+compact: true
+framework:
+  - terraform
+directory: infra/terraform
+skip-check:
+  - CKV_AWS_130
+  - CKV_AWS_23
+  - CKV2_AWS_5

@@ -1,0 +1,442 @@
+# =============================================================================
+# SecurePay lab stack
+#   docker compose up -d                  # data plane + SOC + obs + vault
+#   docker compose --profile app up -d    # + microservices
+#   docker compose --profile atm up -d    # + adaptateur DAB ISO 8583 (réseau 10.8.0.0/24)
+#   docker compose --profile siem up -d   # + Wazuh (RAM++)
+#   docker compose --profile chaos up -d  # + Toxiproxy (chaos engineering, fail-closed)
+#   # Routage services via Toxiproxy : FRAUD_SERVICE_URL=http://toxiproxy:18003, etc.
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: securepay-postgres
+    environment:
+      POSTGRES_DB: securepay
+      POSTGRES_USER: securepay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-securepay_dev}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securepay"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [securepay-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: securepay-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [securepay-net]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: securepay-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: securepay
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-securepay_dev}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks: [securepay-net]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: securepay-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HTTP_PORT: 8080
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_dev}
+    volumes:
+      - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [securepay-net]
+
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: securepay-vault
+    command: server -dev -dev-listen-address=0.0.0.0:8200 -dev-root-token-id=${VAULT_DEV_ROOT_TOKEN:-lab-root-token}
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN:-lab-root-token}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    cap_add: [IPC_LOCK]
+    networks: [securepay-net]
+
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: securepay-prometheus
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "9090:9090"
+    networks: [securepay-net]
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: securepay-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
+    networks: [securepay-net]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: securepay-nginx
+    ports:
+      - "8088:80"
+    volumes:
+      - ./infra/nginx/nginx.lab.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [detection]
+    networks: [securepay-net]
+
+  detection:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: detection
+    container_name: securepay-detection
+    environment:
+      SECUREPAY_EVENT_LOG: /app/logs/securepay-events.jsonl
+      APP_ENV: lab
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./logs:/app/logs
+      - ./detection:/app/detection
+    networks: [securepay-net]
+
+  commandcenter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: commandcenter
+    container_name: securepay-commandcenter
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_PUBLIC_URL: http://keycloak:8080
+      DETECTION_URL: http://detection:8010
+      GATEWAY_URL: http://gateway:8000
+      LEGACY_CORE_URL: https://legacy-core:8004
+      LEGACY_CORE_CA: /certs/ca.crt
+      LEGACY_CORE_CERT: /certs/payment-client.crt
+      LEGACY_CORE_KEY: /certs/payment-client.key
+      ATM_ADAPTER_URL: http://atm-adapter:8016
+      APP_ENV: lab
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./logs:/app/logs
+      - ./detection:/app/detection
+      - legacy-certs:/certs:ro
+    depends_on: [detection, keycloak]
+    networks: [securepay-net]
+
+  gateway:
+    build: { context: ., dockerfile: Dockerfile, target: gateway }
+    container_name: securepay-gateway
+    environment: &app-env
+      DATABASE_URL: postgresql+asyncpg://securepay:${POSTGRES_PASSWORD:-securepay_dev}@postgres:5432/securepay
+      REDIS_URL: redis://redis:6379/0
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: securepay
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment:8001}
+      TOKENIZATION_SERVICE_URL: ${TOKENIZATION_SERVICE_URL:-http://tokenization:8002}
+      FRAUD_SERVICE_URL: ${FRAUD_SERVICE_URL:-http://fraud:8003}
+      LEGACY_CORE_URL: https://legacy-core:8004
+      LEGACY_CORE_CA: /certs/ca.crt
+      LEGACY_CORE_CERT: /certs/payment-client.crt
+      LEGACY_CORE_KEY: /certs/payment-client.key
+      THREEDS_SERVER_URL: http://three-ds-server:8020
+      DIRECTORY_SERVER_URL: http://directory-server:8021
+      ACS_SERVER_URL: http://acs-simulator:8022
+      THREEDS_SECRET: ${THREEDS_SECRET:-lab-3ds-secret-change-me}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      SECUREPAY_EVENT_LOG: /app/logs/securepay-events.jsonl
+      VAULT_MASTER_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-lab-webhook-secret-change-me}
+      APP_ENV: lab
+    ports: ["8000:8000"]
+    volumes: ["./logs:/app/logs"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [securepay-net]
+    profiles: [app]
+
+  payment:
+    build: { context: ., dockerfile: Dockerfile, target: payment }
+    container_name: securepay-payment
+    environment: *app-env
+    ports: ["8001:8001"]
+    volumes:
+      - ./logs:/app/logs
+      - legacy-certs:/certs:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      legacy-core: { condition: service_healthy }
+    networks: [securepay-net]
+    profiles: [app]
+
+  legacy-core:
+    build: { context: ., dockerfile: Dockerfile, target: legacy-core }
+    container_name: securepay-legacy-core
+    environment:
+      APP_ENV: lab
+      LEGACY_CORE_TLS: "1"
+      LEGACY_CERTS_DIR: /certs
+      LEGACY_CORE_RATE_LIMIT: "30"
+      SECUREPAY_EVENT_LOG: /app/logs/securepay-events.jsonl
+      LEGACY_COBOL_BIN: /app/legacy_core/bin/validate
+    ports: ["8004:8004"]
+    volumes:
+      - ./logs:/app/logs
+      - legacy-certs:/certs
+    networks: [securepay-net]
+    profiles: [app]
+
+  atm-adapter:
+    build: { context: ., dockerfile: Dockerfile, target: atm-adapter }
+    container_name: securepay-atm-adapter
+    environment:
+      LEGACY_CORE_URL: https://legacy-core:8004
+      LEGACY_CORE_CA: /certs/ca.crt
+      LEGACY_CORE_CERT: /certs/payment-client.crt
+      LEGACY_CORE_KEY: /certs/payment-client.key
+      SECUREPAY_EVENT_LOG: /app/logs/securepay-events.jsonl
+      SECUREPAY_ATM_LOG_DIR: /app/logs
+      SECUREPAY_ALM_DEFECTS: /app/logs/alm-defects.jsonl
+      SECUREPAY_PV_DIR: /app/logs
+      APP_ENV: lab
+    ports: ["8016:8016"]
+    volumes:
+      - ./logs:/app/logs
+      - legacy-certs:/certs:ro
+    networks:
+      securepay-net: {}
+      dab-net:
+        ipv4_address: 10.8.0.2
+    profiles: [atm]
+
+  tokenization:
+    build: { context: ., dockerfile: Dockerfile, target: tokenization }
+    container_name: securepay-tokenization
+    environment: *app-env
+    ports: ["8002:8002"]
+    volumes: ["./logs:/app/logs"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [securepay-net]
+    profiles: [app]
+
+  fraud:
+    build: { context: ., dockerfile: Dockerfile, target: fraud }
+    container_name: securepay-fraud
+    environment: *app-env
+    ports: ["8003:8003"]
+    volumes: ["./logs:/app/logs"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [securepay-net]
+    profiles: [app]
+
+  three-ds-server:
+    build: { context: ., dockerfile: Dockerfile, target: three-ds-server }
+    container_name: securepay-three-ds-server
+    environment:
+      APP_ENV: lab
+      THREEDS_SECRET: ${THREEDS_SECRET:-lab-3ds-secret-change-me}
+      DS_URL: http://directory-server:8021/api/v1/ds
+      ACS_URL: http://acs-simulator:8022/api/v1/acs
+      SECUREPAY_EVENT_LOG: /app/logs/securepay-events.jsonl
+    ports: ["8020:8020"]
+    volumes: ["./logs:/app/logs"]
+    networks: [securepay-net]
+    profiles: [app]
+
+  directory-server:
+    build: { context: ., dockerfile: Dockerfile, target: directory-server }
+    container_name: securepay-directory-server
+    environment:
+      APP_ENV: lab
+      THREEDS_SECRET: ${THREEDS_SECRET:-lab-3ds-secret-change-me}
+      ACS_URL: http://acs-simulator:8022/api/v1/acs
+      SECUREPAY_EVENT_LOG: /app/logs/securepay-events.jsonl
+    ports: ["8021:8021"]
+    volumes: ["./logs:/app/logs"]
+    networks: [securepay-net]
+    profiles: [app]
+
+  acs-simulator:
+    build: { context: ., dockerfile: Dockerfile, target: acs-simulator }
+    container_name: securepay-acs-simulator
+    environment:
+      APP_ENV: lab
+      THREEDS_SECRET: ${THREEDS_SECRET:-lab-3ds-secret-change-me}
+      SECUREPAY_EVENT_LOG: /app/logs/securepay-events.jsonl
+    ports: ["8022:8022"]
+    volumes: ["./logs:/app/logs"]
+    networks: [securepay-net]
+    profiles: [app]
+
+  legacy-3ds1:
+    build: { context: ., dockerfile: Dockerfile, target: legacy-3ds1 }
+    container_name: securepay-legacy-3ds1
+    environment:
+      APP_ENV: lab
+      SECUREPAY_EVENT_LOG: /app/logs/securepay-events.jsonl
+    ports: ["8023:8023"]
+    volumes: ["./logs:/app/logs"]
+    networks: [securepay-net]
+    profiles: [app]
+
+  toxiproxy:
+    image: shopify/toxiproxy:2.8.0
+    container_name: securepay-toxiproxy
+    ports:
+      - "8474:8474"
+      - "13800:13800"
+    command: -host 0.0.0.0 -config /config/proxies.json
+    volumes:
+      - ./infra/chaos/proxies.json:/config/proxies.json:ro
+    networks: [securepay-net]
+    profiles: [chaos]
+
+  wazuh:
+    image: wazuh/wazuh-manager:4.8.2
+    container_name: securepay-wazuh
+    hostname: wazuh.manager
+    ports:
+      - "1514:1514"
+      - "1515:1515"
+      - "55000:55000"
+    volumes:
+      - ./detection/wazuh/ossec.conf:/wazuh-config-mount/etc/ossec.conf:ro
+      - ./detection/wazuh/rules:/wazuh-config-mount/etc/lists:ro
+    networks: [securepay-net]
+    profiles: [siem]
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: securepay-loki
+    ports: ["3100:3100"]
+    command: -config.file=/etc/loki/local-config.yaml
+    networks: [securepay-net]
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: securepay-promtail
+    volumes:
+      - ./logs:/var/log/securepay:ro
+      - ./infra/loki/promtail.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on: [loki]
+    networks: [securepay-net]
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: securepay-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports: ["9200:9200"]
+    networks: [securepay-net]
+    profiles: [elk]
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: securepay-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports: ["5601:5601"]
+    depends_on: [elasticsearch]
+    networks: [securepay-net]
+    profiles: [elk]
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.13.4
+    container_name: securepay-filebeat
+    user: root
+    volumes:
+      - ./logs:/var/log/securepay:ro
+      - ./infra/elk/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    depends_on: [elasticsearch]
+    networks: [securepay-net]
+    profiles: [elk]
+
+  juiceshop:
+    image: bkimminich/juice-shop:v17.1.1
+    container_name: securepay-juiceshop
+    ports: ["3001:3000"]
+    networks: [securepay-net]
+    profiles: [purple]
+
+  webhook-receiver:
+    build:
+      context: ./services/webhook-receiver
+      dockerfile: Dockerfile
+    container_name: securepay-webhook-receiver
+    environment:
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-lab-webhook-secret-change-me}
+      PORT: "8015"
+    ports: ["8015:8015"]
+    networks: [securepay-net]
+    profiles: [webhooks]
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: securepay-sonarqube
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    ports: ["9002:9000"]
+    networks: [securepay-net]
+    profiles: [sonar]
+
+volumes:
+  postgres_data:
+  redis_data:
+  legacy-certs:
+
+networks:
+  securepay-net:
+    driver: bridge
+  dab-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.8.0.0/24

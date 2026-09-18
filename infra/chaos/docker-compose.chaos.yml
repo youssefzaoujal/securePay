@@ -1,0 +1,25 @@
+# Chaos / résilience — SecurePay
+#
+# Injection de pannes via Toxiproxy entre services :
+#   fail-closed prouvé : fraud timeout → 503/504, jamais un approve silencieux.
+#
+# Scénarios fournis par scripts/inject_chaos.ps1 :
+#   Chaos-FraudDown         — timeout sur fraud/check
+#   Chaos-TokenDown         — connect error sur tokenization
+#   Chaos-PaymentLatency    — latence 5000ms sur payment/process
+#   Chaos-RecoverAll        — suppression des toxics
+# (Scénario nets : kill pod via `kubectl delete pod`, ex. chaos)
+
+services:
+  toxiproxy:
+    image: shopify/toxiproxy:2.5.0
+    container_name: securepay-toxiproxy
+    ports:
+      - "8474:8474"
+      - "18001:18001"
+      - "18002:18002"
+      - "18003:18003"
+    volumes:
+      - ./infra/chaos/proxies.json:/chaos/proxies.json:ro
+    networks: [securepay-net]
+    profiles: [chaos]

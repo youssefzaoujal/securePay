@@ -1,0 +1,56 @@
+# Sigma Rule: Rate Limit Abuse
+# MITRE ATT&CK: T1499 - Endpoint Denial of Service
+# Description: Detects systematic rate limit violations
+
+title: SecurePay - Rate Limit Abuse Detected
+id: 3e4f5a6b-7c8d-9e0f-1a2b-3c4d5e6f7a8b
+status: experimental
+description: |
+  Detects clients systematically hitting rate limits, indicating
+  potential DoS attempt or aggressive scraping.
+  MITRE ATT&CK: T1499.002 (Service Exhaustion Flood)
+author: SecurePay SOC
+date: 2026/08/26
+tags:
+  - attack.dos
+  - attack.t1499
+  - api.security
+  - severity.medium
+
+logsource:
+  product: securepay
+  service: nginx
+  category: access_event
+
+detection:
+  selection:
+    event_type: rate_limit_exceeded
+
+  condition: selection
+
+  timeframe: 5m
+  count: 3
+
+fields:
+  - source_ip
+  - endpoint
+  - request_count
+  - limit
+  - timestamp
+
+falsepositives:
+  - Legitimate high-traffic merchant
+
+level: medium
+
+output:
+  title: "Rate Limit Abuse Detected"
+  description: "Client systematically exceeding rate limits"
+  mitre_attack:
+    - tactic: TA0040
+      technique: T1499.002
+      name: Service Exhaustion Flood
+  recommended_actions:
+    - Temporary IP ban at WAF
+    - Review merchant API usage
+    - Consider plan upgrade or throttling

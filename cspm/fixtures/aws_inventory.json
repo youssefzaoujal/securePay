@@ -1,0 +1,32 @@
+{
+  "iam": {
+    "root_access_keys": true,
+    "users": [{"name": "alice"}, {"name": "svc-deploy"}],
+    "admin_users": ["alice"],
+    "wildcard_policies": ["arn:aws:iam::123456789012:policy/too-open"]
+  },
+  "s3": [
+    {"name": "securepay-public-assets", "public": true, "encryption": false},
+    {"name": "securepay-tx-archive", "public": false, "encryption": true}
+  ],
+  "security_groups": [
+    {
+      "id": "sg-open-ssh",
+      "name": "bastion",
+      "ingress": [{"FromPort": 22, "IpRanges": [{"CidrIp": "0.0.0.0/0"}]}]
+    },
+    {
+      "id": "sg-postgres",
+      "name": "rds",
+      "ingress": [{"FromPort": 5432, "CidrIp": "10.0.0.0/16"}]
+    }
+  ],
+  "ebs": [
+    {"id": "vol-unenc", "encrypted": false},
+    {"id": "vol-ok", "encrypted": true}
+  ],
+  "cloudtrail": {
+    "enabled": false,
+    "trails": []
+  }
+}

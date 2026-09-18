@@ -1,0 +1,34 @@
+# Sigma Rule: SQL injection probes against merchant/payment APIs
+title: SecurePay - SQL Injection Probe
+id: 2f8c11aa-77e1-4c90-injection-001
+status: experimental
+description: |
+  Detects classic SQLi payloads in API fields (merchant onboarding, description).
+  MITRE ATT&CK: T1190 - Exploit Public-Facing Application
+author: SecurePay SOC
+date: 2026/09/02
+tags:
+  - attack.t1190
+  - attack.initial_access
+  - payment.security
+  - severity.high
+logsource:
+  product: securepay
+  service: payment-api
+detection:
+  selection_event:
+    event_type: injection_probe
+  condition: selection_event
+  timeframe: 5m
+  count: 1
+level: high
+output:
+  title: "SQLi probe blocked by ORM parameterization"
+  mitre_attack:
+    - tactic: TA0001
+      technique: T1190
+      name: Exploit Public-Facing Application
+  recommended_actions:
+    - Confirm SQLAlchemy bound parameters held
+    - Block source IP
+    - Add payload to WAF CRS custom rule

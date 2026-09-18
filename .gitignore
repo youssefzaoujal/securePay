@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.PVENV/
+
+# Poetry
+poetry.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+docker-compose.override.yml
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+.terraform/
+*.tfvars
+!*.tfvars.example
+
+# Kubernetes
+kubeconfig
+*.pem
+*.key
+*.crt
+
+# logs
+logs/
+cspm/reports/cspm-*.json
+cspm/reports/cspm-*.html
+
+# Supply chain artefacts générés
+sbom*.json
+*.cdx.json
+detection/sigma/mappings/attack_navigator_layer.auto.json
+cosign.key
+cosign.key.password
+
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Keys and secrets (NEVER commit)
+*.p12
+*.pfx
+secrets/
+secrets.yml

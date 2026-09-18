@@ -1,0 +1,230 @@
+name: CI — DevSecOps (blocks merge on critical)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: securepay-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint:
+    name: Lint & SAST (Ruff, Bandit, Semgrep SARIF)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install ruff bandit semgrep
+      - name: Ruff
+        run: ruff check shared gateway payment tokenization fraud detection cspm legacy_core atm tests
+      - name: Bandit
+        run: bandit -r shared gateway payment tokenization fraud detection cspm legacy_core atm -ll
+      - name: Semgrep SARIF
+        run: semgrep --config p/owasp-top-ten --config p/python --sarif --output semgrep.sarif .
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install ".[dev]" pyyaml
+      - run: pytest tests/unit tests/security -v --tb=short
+
+  gitleaks:
+    name: Secret scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  checkov:
+    name: IaC security (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infra/terraform
+          framework: terraform
+          soft_fail: true
+          output_format: cli
+
+  cspm:
+    name: CSPM fixture + Terraform static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install pyyaml
+      - name: Scan Terraform (shift-left)
+        run: python -m cspm --mode terraform --terraform infra/terraform --out cspm/reports
+      - name: Scan fixture (CIS demo)
+        run: python -m cspm --mode fixture --out cspm/reports || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cspm-report
+          path: cspm/reports
+
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@v3
+
+  sca:
+    name: SCA pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install pip-audit && pip-audit --strict
+
+  container-scan:
+    name: Trivy HIGH/CRITICAL gate + SARIF
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy SARIF
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: trivy.sarif
+          category: trivy
+      - name: Trivy gate
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+  sbom:
+    name: SBOM CycloneDX (Syft + Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syft SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+      - name: Trivy SBOM (CycloneDX)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: cyclonedx
+          output: trivy-sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: |
+            sbom.cdx.json
+            trivy-sbom.cdx.json
+
+  pci-audit:
+    name: PCI-DSS inspired control audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python scripts/pci_audit.py
+
+  docker:
+    name: Build services
+    runs-on: ubuntu-latest
+    needs: [test-unit]
+    strategy:
+      matrix:
+        service: [gateway, payment, tokenization, fraud, detection, legacy-core, atm-adapter]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: ${{ matrix.service }}
+          push: false
+          tags: securepay/${{ matrix.service }}:test
+
+  dast:
+    name: DAST OWASP ZAP
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: zaproxy/action-baseline@v0.12.0
+        continue-on-error: true
+        with:
+          target: "https://www.zaproxy.org"
+
+  gate:
+    name: Merge gate
+    runs-on: ubuntu-latest
+    needs: [lint, test-unit, gitleaks, checkov, cspm, codeql, sca, container-scan, sbom, pci-audit, docker]
+    if: ${{ always() }}
+    steps:
+      - name: Enforce all quality gates
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -q '"result":"failure"'; then
+            echo "One or more SecurePay quality gates failed."
+            exit 1
+          fi
+          echo "All SecurePay quality gates passed — merge authorized."

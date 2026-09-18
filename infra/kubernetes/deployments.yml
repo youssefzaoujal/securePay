@@ -1,0 +1,366 @@
+apiVersion: apps/v1
+kind: Namespace
+metadata:
+  name: securepay
+  labels:
+    app.kubernetes.io/part-of: securepay
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: securepay-config
+  namespace: securepay
+data:
+  DATABASE_URL: "postgresql+asyncpg://securepay:CHANGE_ME@postgres:5432/securepay"
+  KEYCLOAK_URL: "http://keycloak:8080"
+  KEYCLOAK_REALM: "securepay"
+  REDIS_URL: "redis://redis:6379/0"
+  LEGACY_CORE_URL: "http://legacy-core:8004"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: securepay-secrets
+  namespace: securepay
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: "CHANGE_ME"
+  JWT_SECRET_KEY: "CHANGE_ME_USE_openssl_rand_hex_32"
+  FERNET_KEY: "CHANGE_ME"
+  KEYCLOAK_ADMIN_PASSWORD: "CHANGE_ME"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: securepay
+  labels:
+    app: gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+      labels:
+        app: gateway
+        app.kubernetes.io/name: gateway
+        app.kubernetes.io/part-of: securepay
+        app.kubernetes.io/version: "1.0.0"
+      annotations:
+        securepay.io/trivy-scanned: "pass"
+        securepay.io/trivy-severity-gate: "CRITICAL,HIGH"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: gateway
+          image: ghcr.io/securepay/gateway:1.0.0
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: securepay-config
+            - secretRef:
+                name: securepay-secrets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+  namespace: securepay
+  labels:
+    app: payment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payment
+  template:
+    metadata:
+      labels:
+        app: payment
+    spec:
+      containers:
+        - name: payment
+          image: securepay/payment:latest
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: securepay-config
+            - secretRef:
+                name: securepay-secrets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tokenization
+  namespace: securepay
+  labels:
+    app: tokenization
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tokenization
+  template:
+    metadata:
+      labels:
+        app: tokenization
+    spec:
+      containers:
+        - name: tokenization
+          image: securepay/tokenization:latest
+          ports:
+            - containerPort: 8002
+          envFrom:
+            - configMapRef:
+                name: securepay-config
+            - secretRef:
+                name: securepay-secrets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud
+  namespace: securepay
+  labels:
+    app: fraud
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fraud
+  template:
+    metadata:
+      labels:
+        app: fraud
+    spec:
+      containers:
+        - name: fraud
+          image: securepay/fraud:latest
+          ports:
+            - containerPort: 8003
+          envFrom:
+            - configMapRef:
+                name: securepay-config
+            - secretRef:
+                name: securepay-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: securepay
+spec:
+  selector:
+    app: gateway
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment
+  namespace: securepay
+spec:
+  selector:
+    app: payment
+  ports:
+    - port: 80
+      targetPort: 8001
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tokenization
+  namespace: securepay
+spec:
+  selector:
+    app: tokenization
+  ports:
+    - port: 80
+      targetPort: 8002
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud
+  namespace: securepay
+spec:
+  selector:
+    app: fraud
+  ports:
+    - port: 80
+      targetPort: 8003
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy-core
+  namespace: securepay
+  labels:
+    app: legacy-core
+    app.kubernetes.io/name: legacy-core
+    app.kubernetes.io/part-of: securepay
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legacy-core
+  template:
+    metadata:
+      labels:
+        app: legacy-core
+        app.kubernetes.io/name: legacy-core
+        app.kubernetes.io/part-of: securepay
+        app.kubernetes.io/version: "1.0.0"
+      annotations:
+        securepay.io/trivy-scanned: "pass"
+        securepay.io/trivy-severity-gate: "CRITICAL,HIGH"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: legacy-core
+          image: ghcr.io/securepay/legacy-core:1.0.0
+          ports:
+            - containerPort: 8004
+          env:
+            - name: LEGACY_CORE_TLS
+              value: "0"
+            - name: APP_ENV
+              value: "lab"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-core
+  namespace: securepay
+spec:
+  selector:
+    app: legacy-core
+  ports:
+    - port: 8004
+      targetPort: 8004
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: securepay-ingress
+  namespace: securepay
+  annotations:
+    nginx.ingress.kubernetes.io/rate-limit: "60"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.securepay.dev
+      secretName: securepay-tls
+  rules:
+    - host: api.securepay.dev
+      http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 80

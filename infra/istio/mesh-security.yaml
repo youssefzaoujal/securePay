@@ -1,0 +1,121 @@
+# Service mesh (Istio) — mTLS STRICT + autorisation au niveau identité (Phase 2).
+#
+# Déploiement : kubectl apply -f infra/istio/  (après istioctl install)
+# Le mesh utilise SPIFFE Workload Identities (spiffe://cluster.local/ns/<ns>/sa/<sa>)
+# comme source de vérité — même mécanisme que SPIRE. Voir docs/banking-stack.md.
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: securepay
+spec:
+  # STRICT : tout traffic hors mTLS est refusé (Zero Trust, pas de downgrade).
+  mtls:
+    mode: STRICT
+---
+# Default deny : rien n'est autorisé tant qu'une AuthorizationPolicy ne l'ouvre pas.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: default-deny
+  namespace: securepay
+spec:
+  {}
+---
+# Flux marchand (ingress) → gateway
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: gateway-from-ingress
+  namespace: securepay
+spec:
+  selector:
+    matchLabels:
+      app: gateway
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"]
+      to:
+        - operation:
+            ports: ["8000"]
+---
+# gateway → payment (seul payment accepte du gateway)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: payment-from-gateway
+  namespace: securepay
+spec:
+  selector:
+    matchLabels:
+      app: payment
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/securepay/sa/securepay-gateway"]
+      to:
+        - operation:
+            ports: ["8001"]
+---
+# gateway → fraud (vérification SCA)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: fraud-from-gateway
+  namespace: securepay
+spec:
+  selector:
+    matchLabels:
+      app: fraud
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/securepay/sa/securepay-gateway"]
+      to:
+        - operation:
+            ports: ["8003"]
+---
+# gateway → tokenization
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: tokenization-from-gateway
+  namespace: securepay
+spec:
+  selector:
+    matchLabels:
+      app: tokenization
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/securepay/sa/securepay-gateway"]
+        - source:
+            principals: ["cluster.local/ns/securepay/sa/securepay-payment"]
+      to:
+        - operation:
+            ports: ["8002"]
+---
+# payment → legacy-core (mTLS s'applique aussi au canal mainframe)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: legacy-core-from-payment
+  namespace: securepay
+spec:
+  selector:
+    matchLabels:
+      app: legacy-core
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/securepay/sa/securepay-payment"]
+      to:
+        - operation:
+            ports: ["8004"]

@@ -1,0 +1,12 @@
+{
+  "benchmark": "CIS AWS Foundations Benchmark v3.0.0",
+  "controls_implemented": {
+    "1.4": "No root access keys",
+    "1.16": "No admin policy on IAM users / no *:*",
+    "2.1.1": "S3 not public",
+    "2.1.4": "S3 default encryption",
+    "2.2.1": "EBS encryption",
+    "3.1": "CloudTrail enabled",
+    "5.2": "No 0.0.0.0/0 on SSH/RDP/DB ports"
+  }
+}

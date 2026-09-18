@@ -1,0 +1,48 @@
+# =============================================================================
+# Vérification Cosign + attestation SBOM CycloneDX.
+# Lab : Audit (ne casse pas k3s local). Prod : apply verify-cosign-enforce.yml
+# =============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-cosign
+  annotations:
+    policies.kyverno.io/title: Verify Cosign signature
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Vérifie la signature Cosign et l'attestation SBOM CycloneDX (Audit en lab).
+spec:
+  validationFailureAction: Audit
+  background: true
+  webhookTimeoutSeconds: 15
+  rules:
+    - name: verify-sigstore-and-sbom
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [securepay, tenant-acme, tenant-globex]
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/*/gateway*"
+            - "ghcr.io/*/payment*"
+            - "ghcr.io/*/tokenization*"
+            - "ghcr.io/*/fraud*"
+            - "ghcr.io/*/detection*"
+            - "ghcr.io/*/legacy-core*"
+          attestors:
+            - entries:
+                - keyless:
+                    issuer: "https://token.actions.githubusercontent.com"
+                    subject: "https://github.com/*/.github/workflows/cd.yml@refs/heads/main"
+          attestations:
+            - predicateType: https://cyclonedx.org/bom
+              attestors:
+                - entries:
+                    - keyless:
+                        issuer: "https://token.actions.githubusercontent.com"
+                        subject: "https://github.com/*/.github/workflows/cd.yml@refs/heads/main"
+          mutateDigest: true
+          verifyDigest: false
+          required: false

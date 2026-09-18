@@ -1,0 +1,38 @@
+# Service mesh — tail latent des services internes (Phase 2).
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: gateway
+  namespace: securepay
+spec:
+  hosts:
+    - "*"
+  gateways: [securepay-gateway]
+  http:
+    - match:
+        - uri:
+            prefix: /api/v1/
+      route:
+        - destination:
+            host: gateway
+            port:
+              number: 8000
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: securepay-gateway
+  namespace: securepay
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts: ["api.securepay.lab"]
+      tls:
+        mode: SIMPLE
+        credentialName: securepay-tls        # cert from cert-manager / Vault PKI

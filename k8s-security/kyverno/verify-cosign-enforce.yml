@@ -1,0 +1,38 @@
+# Prod / cluster signé : Enforce signature Cosign + attestation SBOM.
+# Ne pas appliquer sur un lab k3s d'images :latest non signées.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-cosign-enforce
+  annotations:
+    policies.kyverno.io/title: Enforce Cosign + CycloneDX SBOM
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  background: true
+  webhookTimeoutSeconds: 20
+  rules:
+    - name: require-signature-and-sbom
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [securepay]
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/*/*"
+          attestors:
+            - entries:
+                - keyless:
+                    issuer: "https://token.actions.githubusercontent.com"
+                    subject: "https://github.com/*/.github/workflows/cd.yml@refs/heads/main"
+          attestations:
+            - predicateType: https://cyclonedx.org/bom
+              attestors:
+                - entries:
+                    - keyless:
+                        issuer: "https://token.actions.githubusercontent.com"
+                        subject: "https://github.com/*/.github/workflows/cd.yml@refs/heads/main"
+          mutateDigest: true
+          required: true

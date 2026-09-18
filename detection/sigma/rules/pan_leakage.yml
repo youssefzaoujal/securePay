@@ -1,0 +1,34 @@
+# Sigma Rule: PAN leakage in logs (should never fire in a healthy pipeline)
+title: SecurePay - PAN Leakage In Logs
+id: 9d0b44ee-pci-pan-leak-001
+status: experimental
+description: |
+  Detects full primary account numbers in structured logs — PCI-DSS Req 3 / 10 violation.
+  MITRE ATT&CK: T1552 - Unsecured Credentials
+author: SecurePay SOC
+date: 2026/09/02
+tags:
+  - attack.t1552
+  - pci.req3
+  - severity.critical
+logsource:
+  product: securepay
+  category: application_log
+detection:
+  selection_event:
+    event_type: pan_leakage
+  condition: selection_event
+  timeframe: 1m
+  count: 1
+level: critical
+output:
+  title: "Possible PAN in logs"
+  mitre_attack:
+    - tactic: TA0006
+      technique: T1552
+      name: Unsecured Credentials
+  recommended_actions:
+    - Stop log shipping immediately
+    - Rotate vault master key
+    - Purge log sinks
+    - Open PCI incident

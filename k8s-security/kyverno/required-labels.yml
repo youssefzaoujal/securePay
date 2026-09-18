@@ -1,0 +1,57 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  annotations:
+    policies.kyverno.io/title: Required Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-app-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+      validate:
+        message: "Le label 'app.kubernetes.io/name' est obligatoire."
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/name: "?*"
+              app.kubernetes.io/version: "?*"
+              app.kubernetes.io/part-of: "securepay"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-namespace-label
+  annotations:
+    policies.kyverno.io/title: Require Namespace Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: low
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: check-namespace-labels
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              names:
+                - securepay
+                - securepay-*
+      validate:
+        message: "Le namespace doit avoir les labels security et environment."
+        pattern:
+          metadata:
+            labels:
+              security: "restricted"
+              environment: "?*"

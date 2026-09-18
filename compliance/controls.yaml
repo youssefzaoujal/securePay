@@ -1,0 +1,97 @@
+# Inventaire des contrôles PCI-DSS v4.0.1 (lab SecurePay)
+# Colonnes : id | exigence | catégorie | chemin de preuve | statut attendu
+# Un contrôle est PASS si sa preuve existe dans le repo (hygiène de base).
+# Les statuts sont évalués par compliance/assess.py — pas de fausses certifications.
+
+controls:
+  - id: PCI-8.4.2
+    requirement: "MFA pour tout accès au CDE (cartes)"
+    category: identification-auth
+    evidence:
+      - k8s-security/kyverno/pod-security-policies.yml
+    status: implemented
+
+  - id: PCI-10.4.1.1
+    requirement: "Revue automatique des journaux (détection)"
+    category: monitoring
+    evidence:
+      - detection/sigma
+    status: implemented
+
+  - id: PCI-1
+    requirement: "Segmentation réseau : deny-by-default"
+    category: network
+    evidence:
+      - k8s-security/network-policies/default-deny.yml
+      - infra/istio/mesh-security.yaml
+    status: implemented
+
+  - id: PCI-3
+    requirement: "Données de carte : chiffrées au repos / PAN jamais en clair en base"
+    category: data-at-rest
+    evidence:
+      - tokenization
+      - vault_integration
+    status: implemented
+
+  - id: PCI-4
+    requirement: "Chiffrement des transmissions (mTLS / TLS 1.3)"
+    category: data-in-transit
+    evidence:
+      - infra/istio/mesh-security.yaml
+    status: implemented
+
+  - id: PCI-6
+    requirement: "SDLC : revue, tests, chaînes d'outils verrouillées (SBOM, cosign)"
+    category: sdlc
+    evidence:
+      - .github/workflows/ci.yml
+      - k8s-security/kyverno/image-scan-gate.yml
+      - k8s-security/kyverno/verify-cosign.yml
+    status: implemented
+
+  - id: PCI-7
+    requirement: "Restriction des accès selon le besoin d'en connaître"
+    category: access
+    evidence:
+      - infra/istio/mesh-security.yaml
+    status: implemented
+
+  - id: PCI-8
+    requirement: "Identification & authentification unique par utilisateur"
+    category: identification-auth
+    evidence:
+      - infra/keycloak
+    status: implemented
+
+  - id: PCI-10
+    requirement: "Journalisation & corrélation des événements"
+    category: monitoring
+    evidence:
+      - detection/ads
+      - shared/tracing.py
+    status: implemented
+
+  - id: PCI-11
+    requirement: "Tests réguliers de sécurité (SAST, dépendances, chaîne logicielle)"
+    category: testing
+    evidence:
+      - tests/security
+      - k8s-security/admission
+    status: implemented
+
+  - id: PCI-12
+    requirement: "Gouvernance, politique de sécurité documentée"
+    category: governance
+    evidence:
+      - docs/security-controls.md
+      - docs/zero-trust.md
+    status: implemented
+
+  - id: PCI-13
+    requirement: "Surveillance continue & résilience (chaos)"
+    category: resilience
+    evidence:
+      - infra/chaos
+      - infra/chaos-mesh
+    status: implemented

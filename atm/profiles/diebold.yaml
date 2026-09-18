@@ -1,0 +1,9 @@
+vendor: diebold
+family: "Opteva / DN Series (historique Diebold)"
+notes: "Profil lab Diebold — clés de sécurité documentées, pas de HSM réel."
+terminal_id_prefix: "DBD"
+timeout_ms: 7500
+pan_field: 2
+amount_field: 4
+pin_block: "ISO-3"
+mxa_device_code: "DBD-OP"

@@ -1,0 +1,36 @@
+# KaNest-lite — recettes Data-Driven (lab). LSB = Liste de Surveillance Bancaire.
+- id: ATM-RET-001
+  title: Retrait 50 EUR — compte suffisant
+  scenario: withdrawal
+  vendor: ncr
+  amount: 50
+  pan: "4111111111111111"
+  expected_rc: "00"
+- id: ATM-RET-002
+  title: Retrait 600000 EUR — refus core / plafond
+  scenario: withdrawal
+  vendor: diebold
+  amount: 600000
+  pan: "4111111111111111"
+  expected_rc: "51"
+- id: ATM-DEP-V-001
+  title: Dépôt valorisé 200 EUR
+  scenario: deposit_valued
+  vendor: wnx
+  amount: 200
+  pan: "4111111111111111"
+  expected_rc: "00"
+- id: ATM-DEP-NV-001
+  title: Dépôt non valorisé (cassette / encours)
+  scenario: deposit_unvalued
+  vendor: dn
+  amount: 150
+  pan: "4111111111111111"
+  expected_rc: "00"
+- id: ATM-LSB-001
+  title: LSB — carte en liste de surveillance
+  scenario: lsb
+  vendor: ncr
+  amount: 20
+  pan: "4000000000000002"
+  expected_rc: "62"

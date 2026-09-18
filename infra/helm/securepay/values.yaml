@@ -1,0 +1,151 @@
+# =============================================================================
+# SecurePay Helm Chart - Values
+# =============================================================================
+
+global:
+  name: securepay
+  environment: dev
+  imageRegistry: ghcr.io/securepay
+
+# --- Gateway ---
+gateway:
+  replicaCount: 2
+  image:
+    repository: securepay/gateway
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilization: 70
+
+# --- Payment ---
+payment:
+  replicaCount: 2
+  image:
+    repository: securepay/payment
+    tag: latest
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# --- Tokenization ---
+tokenization:
+  replicaCount: 2
+  image:
+    repository: securepay/tokenization
+    tag: latest
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+
+# --- Fraud ---
+fraud:
+  replicaCount: 2
+  image:
+    repository: securepay/fraud
+    tag: latest
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+# --- EMV 3DS 2.3.1 ---
+threeDsServer:
+  image:
+    repository: securepay/three-ds-server
+    tag: latest
+  resources:
+    requests: { memory: "128Mi", cpu: "100m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+
+directoryServer:
+  image:
+    repository: securepay/directory-server
+    tag: latest
+  resources:
+    requests: { memory: "128Mi", cpu: "100m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+
+acsSimulator:
+  image:
+    repository: securepay/acs-simulator
+    tag: latest
+  resources:
+    requests: { memory: "128Mi", cpu: "100m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+
+legacy3ds1:
+  image:
+    repository: securepay/legacy-3ds1
+    tag: latest
+  resources:
+    requests: { memory: "64Mi", cpu: "50m" }
+    limits: { memory: "256Mi", cpu: "250m" }
+
+# --- Keycloak ---
+keycloak:
+  enabled: true
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: "23.0"
+  admin:
+    username: admin
+    password: admin
+
+# --- PostgreSQL (external via Terraform) ---
+postgres:
+  host: ""  # Rempli par Terraform output
+  port: 5432
+  database: securepay
+  user: securepay
+
+# --- Redis (external via Terraform) ---
+redis:
+  host: ""  # Rempli par Terraform output
+  port: 6379
+
+# --- Monitoring ---
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+  grafana:
+    enabled: true
+
+# --- Security ---
+security:
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  networkPolicy:
+    enabled: true

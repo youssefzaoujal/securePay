@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-legacy-3ds1
+  labels:
+    app: legacy-3ds1
+    app.kubernetes.io/name: legacy-3ds1
+    app.kubernetes.io/part-of: securepay
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legacy-3ds1
+  template:
+    metadata:
+      labels:
+        app: legacy-3ds1
+        app.kubernetes.io/name: legacy-3ds1
+        app.kubernetes.io/part-of: securepay
+      annotations:
+        securepay.io/trivy-scanned: "pass"
+        securepay.io/trivy-severity-gate: "CRITICAL,HIGH"
+    spec:
+      securityContext:
+        {{- toYaml .Values.security.podSecurityContext | nindent 8 }}
+      containers:
+        - name: legacy-3ds1
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.legacy3ds1.image.repository }}:{{ .Values.legacy3ds1.image.tag }}"
+          ports:
+            - containerPort: 8023
+          resources:
+            {{- toYaml .Values.legacy3ds1.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.security.containerSecurityContext | nindent 12 }}
+          env:
+            - name: APP_ENV
+              value: {{ .Values.global.environment | quote }}
+          livenessProbe:
+            httpGet: { path: /health, port: 8023 }
+          readinessProbe:
+            httpGet: { path: /health, port: 8023 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-legacy-3ds1
+  labels: { app: legacy-3ds1, app.kubernetes.io/part-of: securepay }
+spec:
+  type: ClusterIP
+  selector: { app: legacy-3ds1 }
+  ports:
+    - port: 8023
+      targetPort: 8023

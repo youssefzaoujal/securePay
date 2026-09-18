@@ -1,0 +1,56 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-image-scan-gate
+  annotations:
+    policies.kyverno.io/title: Mandatory Image Scan Gate
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Refuse tout Pod SecurePay dont l'annotation de scan Trivy n'est pas pass.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-trivy-pass
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [securepay]
+      validate:
+        message: "Admission refusée: annotation securepay.io/trivy-scanned=pass obligatoire (gate CI Trivy)."
+        pattern:
+          metadata:
+            annotations:
+              securepay.io/trivy-scanned: "pass"
+              securepay.io/trivy-severity-gate: "CRITICAL,HIGH"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow latest tag
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: medium
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: no-latest
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [securepay]
+      validate:
+        message: "Les tags :latest sont interdits — pinner un digest ou un git sha."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.containers[].image }}"
+                operator: AnyIn
+                value:
+                  - "*:latest"
+                  - "*/*:latest"

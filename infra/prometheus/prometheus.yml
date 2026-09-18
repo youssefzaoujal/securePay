@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: gateway
+    static_configs:
+      - targets: ["gateway:8000", "host.docker.internal:8000"]
+  - job_name: payment
+    static_configs:
+      - targets: ["payment:8001", "host.docker.internal:8001"]
+  - job_name: tokenization
+    static_configs:
+      - targets: ["tokenization:8002", "host.docker.internal:8002"]
+  - job_name: fraud
+    static_configs:
+      - targets: ["fraud:8003", "host.docker.internal:8003"]
+  - job_name: detection
+    static_configs:
+      - targets: ["detection:8010", "host.docker.internal:8010"]

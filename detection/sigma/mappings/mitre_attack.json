@@ -1,0 +1,109 @@
+{
+  "SecurePay_Card_Testing": {
+    "description": "Card-testing / carding against the payment API",
+    "mitre_attack": {
+      "tactic": "TA0040",
+      "tactic_name": "Impact",
+      "technique_id": "T1657",
+      "technique_name": "Financial Theft"
+    },
+    "sigma_rules": ["card_testing_attack.yml"],
+    "log_sources": ["payment-api", "fraud-engine", "nginx-waf"],
+    "controls": ["rate-limit", "velocity-rules", "WAF"],
+    "runbook": "detection/ir/runbook_card_testing.md"
+  },
+  "SecurePay_Credential_Stuffing": {
+    "description": "Credential stuffing against Keycloak",
+    "mitre_attack": {
+      "tactic": "TA0006",
+      "tactic_name": "Credential Access",
+      "technique_id": "T1110.004",
+      "technique_name": "Credential Stuffing"
+    },
+    "sigma_rules": ["credential_stuffing.yml"],
+    "log_sources": ["keycloak", "gateway"],
+    "runbook": "detection/ir/runbook_credential_stuffing.md"
+  },
+  "SecurePay_BOLA": {
+    "description": "Broken Object Level Authorization (OWASP API1)",
+    "mitre_attack": {
+      "tactic": "TA0009",
+      "tactic_name": "Collection",
+      "technique_id": "T1213",
+      "technique_name": "Data from Information Repositories"
+    },
+    "sigma_rules": ["bola_attack.yml"],
+    "log_sources": ["gateway", "payment-api"],
+    "runbook": "detection/ir/runbook_bola.md"
+  },
+  "SecurePay_JWT_Replay": {
+    "description": "JWT jti reuse / token replay",
+    "mitre_attack": {
+      "tactic": "TA0006",
+      "tactic_name": "Credential Access",
+      "technique_id": "T1550.001",
+      "technique_name": "Application Access Token"
+    },
+    "sigma_rules": ["jwt_replay.yml"],
+    "log_sources": ["gateway"],
+    "runbook": "detection/ir/runbook_jwt_replay.md"
+  },
+  "SecurePay_SQLi": {
+    "description": "SQL injection probes on merchant/payment APIs",
+    "mitre_attack": {
+      "tactic": "TA0001",
+      "tactic_name": "Initial Access",
+      "technique_id": "T1190",
+      "technique_name": "Exploit Public-Facing Application"
+    },
+    "sigma_rules": ["sql_injection.yml"],
+    "log_sources": ["gateway"],
+    "runbook": "detection/ir/runbook_sql_injection.md"
+  },
+  "SecurePay_PAN_Leakage": {
+    "description": "Full PAN appearing in logs (PCI incident)",
+    "mitre_attack": {
+      "tactic": "TA0006",
+      "tactic_name": "Credential Access",
+      "technique_id": "T1552",
+      "technique_name": "Unsecured Credentials"
+    },
+    "sigma_rules": ["pan_leakage.yml"],
+    "log_sources": ["application"],
+    "runbook": "detection/ir/runbook_pan_leakage.md"
+  },
+  "SecurePay_Rate_Limit": {
+    "description": "Service exhaustion / card-testing flood",
+    "mitre_attack": {
+      "tactic": "TA0040",
+      "tactic_name": "Impact",
+      "technique_id": "T1499.002",
+      "technique_name": "Service Exhaustion Flood"
+    },
+    "sigma_rules": ["rate_limit_abuse.yml"],
+    "log_sources": ["nginx", "gateway"]
+  },
+  "SecurePay_Fraud_Spike": {
+    "description": "Cluster of high fraud scores",
+    "mitre_attack": {
+      "tactic": "TA0040",
+      "tactic_name": "Impact",
+      "technique_id": "T1657",
+      "technique_name": "Financial Theft"
+    },
+    "sigma_rules": ["fraud_anomaly.yml"],
+    "log_sources": ["fraud-engine"]
+  },
+  "SecurePay_Container_Escape": {
+    "description": "Runtime shell in production container (Falco)",
+    "mitre_attack": {
+      "tactic": "TA0002",
+      "tactic_name": "Execution",
+      "technique_id": "T1059",
+      "technique_name": "Command and Scripting Interpreter"
+    },
+    "sigma_rules": [],
+    "log_sources": ["falco"],
+    "platform_control": "k8s-security/falco/rules.yml"
+  }
+}

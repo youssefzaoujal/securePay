@@ -1,0 +1,63 @@
+# Chaos Mesh (Phase 3) — injection d'échecs ciblés en cluster.
+# Complément de l'injection "host" par Toxiproxy (infra/chaos) :
+# ici, Chaos Mesh agit au niveau Pod/Network, avec de vraies attaques
+# (paquet drop, latency, kill de pod) déclenchées par un mesh CRD.
+# Le lab documente ces manifestes ; toxiproxy reste la méthode locale.
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: payment-pod-failure
+  namespace: securepay
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces: ["securepay"]
+    labelSelectors:
+      app: payment
+  duration: "30s"
+  scheduler:
+    cron: "@every 5m"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: legacy-core-latency
+  namespace: securepay
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces: ["securepay"]
+    labelSelectors:
+      app: legacy-core
+  delay:
+    latency: "600ms"
+    correlation: "50"
+    jitter: "100ms"
+  duration: "1m"
+  scheduler:
+    cron: "@every 10m"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: fraud-link-partition
+  namespace: securepay
+spec:
+  action: partition
+  mode: one
+  selector:
+    namespaces: ["securepay"]
+    labelSelectors:
+      app: fraud
+  direction: to
+  target:
+    selector:
+      namespaces: ["securepay"]
+      labelSelectors:
+        app: gateway
+  duration: "15s"
+  scheduler:
+    cron: "@every 7m"

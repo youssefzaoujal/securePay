@@ -1,0 +1,38 @@
+// Toxiproxy — injection de pannes pour prouver la résilience fail-closed.
+//
+// Usage :
+//   docker compose --profile app --profile chaos up -d \
+//     -e FRAUD_SERVICE_URL=http://toxiproxy:18003 \
+//     -e TOKENIZATION_SERVICE_URL=http://toxiproxy:18002 \
+//     -e PAYMENT_SERVICE_URL=http://toxiproxy:18001
+//   docker exec securepay-toxiproxy sh -c \
+//     "curl -s http://localhost:8474/proxies -X POST -H 'Content-Type: application/json' \
+//      -d @/chaos/proxies.json"
+//
+// Variante "fraud down" (lancée par scripts/inject_chaos.ps1) :
+//   curl -s http://localhost:8474/proxies/fraud-check/toxics -X POST \
+//     -H 'Content-Type: application/json' \
+//     -d '{"type":"timeout","name":"fraud-down","toxicity":1,"attributes":{"timeout":12000,"jitter":0}}'
+//
+// Résultat attendu : gateway → 503/504 (fail-closed), jamais un approve silencieux.
+
+{
+  "fraud-check": {
+    "enabled": true,
+    "listen": "0.0.0.0:18003",
+    "upstream": "fraud:8003",
+    "name": "fraud-check"
+  },
+  "payment-process": {
+    "enabled": true,
+    "listen": "0.0.0.0:18001",
+    "upstream": "payment:8001",
+    "name": "payment-process"
+  },
+  "tokenize-cde": {
+    "enabled": true,
+    "listen": "0.0.0.0:18002",
+    "upstream": "tokenization:8002",
+    "name": "tokenize-cde"
+  }
+}

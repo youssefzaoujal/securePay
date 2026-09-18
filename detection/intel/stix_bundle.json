@@ -1,0 +1,45 @@
+{
+  "type": "bundle",
+  "id": "bundle--securepay-lab-intel",
+  "objects": [
+    {
+      "type": "identity",
+      "id": "identity--securepay-soc",
+      "name": "SecurePay SOC",
+      "identity_class": "organization"
+    },
+    {
+      "type": "indicator",
+      "id": "indicator--carding-ip-range",
+      "name": "Lab carding TEST-NET-3",
+      "pattern": "[ipv4-addr:value = '203.0.113.0/24']",
+      "pattern_type": "stix",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "labels": ["carding", "lab"]
+    },
+    {
+      "type": "attack-pattern",
+      "id": "attack-pattern--t1657",
+      "name": "Financial Theft",
+      "external_references": [
+        { "source_name": "mitre-attack", "external_id": "T1657", "url": "https://attack.mitre.org/techniques/T1657/" }
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "id": "attack-pattern--t1213",
+      "name": "Data from Information Repositories",
+      "external_references": [
+        { "source_name": "mitre-attack", "external_id": "T1213" }
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "id": "attack-pattern--t1110",
+      "name": "Credential Stuffing",
+      "external_references": [
+        { "source_name": "mitre-attack", "external_id": "T1110.004" }
+      ]
+    }
+  ]
+}

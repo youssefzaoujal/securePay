@@ -1,0 +1,41 @@
+# Sigma Rule: JWT Tampering / Replay
+title: SecurePay - JWT Tampering or Replay
+id: 7c1e9a20-4b33-4d91-9f10-jwt-replay-001
+status: experimental
+description: |
+  Detects reused JWT jti (replay) or malformed bearer tokens against the gateway.
+  MITRE ATT&CK: T1550.001 - Application Access Token
+author: SecurePay SOC
+date: 2026/09/02
+tags:
+  - attack.t1550.001
+  - attack.credential_access
+  - payment.security
+  - severity.high
+logsource:
+  product: securepay
+  service: gateway
+  category: authentication
+detection:
+  selection_event:
+    event_type: jwt_replay
+  selection_status:
+    status: blocked
+  condition: selection_event and selection_status
+  timeframe: 10m
+  count: 1
+fields:
+  - jti
+  - source_ip
+  - merchant_id
+level: high
+output:
+  title: "JWT replay blocked"
+  mitre_attack:
+    - tactic: TA0006
+      technique: T1550.001
+      name: Application Access Token
+  recommended_actions:
+    - Rotate the merchant client secret
+    - Block source IP at WAF
+    - Inspect token issuance logs in Keycloak

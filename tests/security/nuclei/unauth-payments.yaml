@@ -1,0 +1,15 @@
+id: securepay-unauth-payments
+info:
+  name: SecurePay — payments sans JWT
+  author: securepay-lab
+  severity: high
+  description: GET /payments doit refuser sans Bearer (OWASP API1 / BOLA).
+  tags: securepay,owasp,api,auth
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/payments"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [401, 403]

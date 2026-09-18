@@ -1,0 +1,35 @@
+{{- if .Values.migrations.enabled }}
+# Migrations Alembic exécutées en job Helm hook avant install/upgrade.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    "helm.sh/hook-weight": "-5"
+  labels:
+    app.kubernetes.io/part-of: securepay
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit | default 2 }}
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: migrate
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        {{- toYaml .Values.security.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.migrations.image.repository }}:{{ .Values.migrations.image.tag }}"
+          command: ["alembic", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://{{ .Values.postgres.user }}:{{ .Values.postgres.password | default "" }}@{{ .Values.postgres.host }}:{{ .Values.postgres.port }}/{{ .Values.postgres.database }}"
+            - name: APP_ENV
+              value: {{ .Values.global.environment | quote }}
+          securityContext:
+            {{- toYaml .Values.security.containerSecurityContext | nindent 12 }}
+{{- end }}

@@ -1,0 +1,29 @@
+# =============================================================================
+# Local Kubernetes path — k3d / k3s / kind
+# Cloud-ready path: infra/terraform (EKS + VPC + RDS)
+# =============================================================================
+# Quickstart (k3d):
+#   k3d cluster create securepay --agents 2
+#   kubectl apply -f infra/kubernetes/namespace.yml
+#   helm repo add kyverno https://kyverno.github.io/kyverno
+#   helm repo add falcosecurity https://falcosecurity.github.io/charts
+#   helm repo add hashicorp https://helm.releases.hashicorp.com
+#   helm install kyverno kyverno/kyverno -n kyverno --create-namespace
+#   helm install falco falcosecurity/falco -n falco --create-namespace \
+#     --set falco.jsonOutput=true \
+#     --set-file customRules=k8s-security/falco/rules.yml
+#   helm install vault hashicorp/vault -n vault --create-namespace --set server.dev.enabled=true
+#   kubectl apply -f k8s-security/kyverno/
+#   kubectl apply -f k8s-security/network-policies/
+#   kubectl apply -f k8s-security/opa/
+#   kubectl apply -k infra/k3s
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: securepay
+resources:
+  - ../kubernetes/deployments.yml
+  - ../../k8s-security/network-policies/default-deny.yml
+commonLabels:
+  app.kubernetes.io/part-of: securepay
+  security: restricted

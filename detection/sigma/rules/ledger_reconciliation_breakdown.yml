@@ -1,0 +1,62 @@
+# Sigma Rule: Ledger Reconciliation Breakdown
+# MITRE ATT&CK: T1657 - Financial Theft
+# Description: Detect un uncle error in double-entry accounting — monitored
+# with the same detection pipeline as security (PCI-DSS 10.4.1.1 review auto).
+
+title: SecurePay - Ledger Double-Entry Breakdown
+id: 9b8c7d6e-5f4a-3b2c-1d0e-f1e2d3c4b5a6
+status: experimental
+description: |
+  A debit/credit imbalance or capture drift was detected during reconciliation.
+  Double-entry accounting must always balance (delta == 0); any imbalance is a
+  financial integrity anomaly (possible internal fraud, bug or float theft).
+  MITRE ATT&CK: T1657 (Financial Theft)
+author: SecurePay SOC
+date: 2026/09/04
+tags:
+  - attack.fraud
+  - attack.t1657
+  - payment.financial-integrity
+  - severity.critical
+
+logsource:
+  product: securepay
+  service: payment-ledger
+  category: reconciliation
+
+detection:
+  selection:
+    event_type: ledger_reconciliation
+    scenario: ledger_reconciliation_breakdown
+
+  condition: selection
+
+  timeframe: 24h
+  count: 1
+
+fields:
+  - currency
+  - debits
+  - credits
+  - delta
+  - entries
+  - captures
+  - timestamp
+
+falsepositives:
+  - None (double-entry must always balance)
+
+level: critical
+
+output:
+  title: "Ledger Double-Entry Breakdown"
+  description: "Reconciliation detected unbalanced accounting (delta != 0) or drift"
+  mitre_attack:
+    - tactic: TA0040
+      technique: T1657
+      name: Financial Theft
+  recommended_actions:
+    - Freeze merchant payout
+    - Open forensic accounting review
+    - Compare ledger vs payment service captures
+    - Check for unauthorized ledger entries

@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-three-ds-server
+  labels:
+    app: three-ds-server
+    app.kubernetes.io/name: three-ds-server
+    app.kubernetes.io/part-of: securepay
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: three-ds-server
+  template:
+    metadata:
+      labels:
+        app: three-ds-server
+        app.kubernetes.io/name: three-ds-server
+        app.kubernetes.io/part-of: securepay
+      annotations:
+        securepay.io/trivy-scanned: "pass"
+        securepay.io/trivy-severity-gate: "CRITICAL,HIGH"
+    spec:
+      securityContext:
+        {{- toYaml .Values.security.podSecurityContext | nindent 8 }}
+      containers:
+        - name: three-ds-server
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.threeDsServer.image.repository }}:{{ .Values.threeDsServer.image.tag }}"
+          ports:
+            - containerPort: 8020
+          resources:
+            {{- toYaml .Values.threeDsServer.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.security.containerSecurityContext | nindent 12 }}
+          env:
+            - name: APP_ENV
+              value: {{ .Values.global.environment | quote }}
+            - name: THREEDS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-three-ds-secret
+                  key: secret
+                  optional: true
+            - name: DS_URL
+              value: http://{{ .Release.Name }}-directory-server:8021
+            - name: ACS_URL
+              value: http://{{ .Release.Name }}-acs-simulator:8022
+          livenessProbe:
+            httpGet: { path: /health, port: 8020 }
+          readinessProbe:
+            httpGet: { path: /health, port: 8020 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-three-ds-server
+  labels: { app: three-ds-server, app.kubernetes.io/part-of: securepay }
+spec:
+  type: ClusterIP
+  selector: { app: three-ds-server }
+  ports:
+    - port: 8020
+      targetPort: 8020

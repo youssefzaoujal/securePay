@@ -1,0 +1,175 @@
+# =============================================================================
+# Network Policies - SecurePay Kubernetes
+# Isolation réseau entre les services (PCI-DSS Req 1-2)
+# =============================================================================
+# Par défaut, tous les pods dans le namespace securepay sont isolés.
+# Seules les communications explicitement autorisées sont permises.
+
+# ─── DEFAULT DENY: Bloquer tout le trafic ingress/egress ───────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: securepay
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# ─── ALLOW: Gateway → tous les services (internal API calls) ────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-egress
+  namespace: securepay
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway
+  policyTypes:
+    - Egress
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Gateway → Payment Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: payment
+      ports:
+        - protocol: TCP
+          port: 8001
+    # Gateway → Tokenization Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: tokenization
+      ports:
+        - protocol: TCP
+          port: 8002
+    # Gateway → Fraud Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: fraud
+      ports:
+        - protocol: TCP
+          port: 8003
+---
+# ─── ALLOW: Payment → PostgreSQL (port 5432) ───────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-payment-to-postgres
+  namespace: securepay
+spec:
+  podSelector:
+    matchLabels:
+      app: payment
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# ─── ALLOW: Tokenization → PostgreSQL ──────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-tokenization-to-postgres
+  namespace: securepay
+spec:
+  podSelector:
+    matchLabels:
+      app: tokenization
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# ─── ALLOW: Fraud → Redis (port 6379) ──────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-fraud-to-redis
+  namespace: securepay
+spec:
+  podSelector:
+    matchLabels:
+      app: fraud
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+---
+# ─── ALLOW: Ingress → Gateway (public API) ─────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-gateway
+  namespace: securepay
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# ─── ALLOW: Keycloak depuis Gateway uniquement ─────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-keycloak
+  namespace: securepay
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: keycloak
+      ports:
+        - protocol: TCP
+          port: 8080

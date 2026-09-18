@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package securepay.internal.v1;
+
+// Appels internes basse latence entre microservices.
+// REST reste la surface externe ; gRPC assure le backbone service→service.
+
+service PaymentService {
+  // Capture / autorisation interne d'un paiement tokenisé.
+  rpc ProcessCapture(CaptureRequest) returns (CaptureReply);
+}
+
+service FraudService {
+  // Score de risque sur une transaction (vélocité + règles + ML déjà dans fraud/).
+  rpc EvaluateRisk(RiskRequest) returns (RiskReply);
+}
+
+message CaptureRequest {
+  string payment_id = 1;
+  string merchant_id = 2;
+  double amount = 3;
+  string currency = 4;
+  string card_token = 5;      // jamais de PAN ici
+  string three_ds_eci = 6;    // ECI EMVCo référencé en phase 1
+  string three_ds_cavv = 7;   // CAVV issu du 3DS Server
+}
+
+message CaptureReply {
+  string payment_id = 1;
+  string status = 2;          // approved | declined
+  string reason_code = 3;
+}
+
+message RiskRequest {
+  string payment_id = 1;
+  string card_token = 2;
+  double amount = 3;
+  string currency = 4;
+  string merchant_id = 5;
+  string ip_address = 6;
+}
+
+message RiskReply {
+  double risk_score = 1;
+  string recommendation = 2;  // approve | review | decline
+  bool challenge_required = 3;
+  repeated string flags = 4;
+}

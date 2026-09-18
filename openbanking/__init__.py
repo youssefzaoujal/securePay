@@ -1,0 +1,1 @@
+"""Open Banking / PSD2 — consent OAuth2 rôles AISP/PISP."""

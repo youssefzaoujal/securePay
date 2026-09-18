@@ -1,0 +1,51 @@
+---
+# Ansible lab — post-déploiement agents Falco / Prometheus Node Exporter.
+# Usage : ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/deploy-agents.yml
+- name: Deploy monitoring agents on lab nodes
+  hosts: lab
+  become: true
+  vars:
+    falco_rules_src: "{{ playbook_dir }}/../../k8s-security/falco/rules.yml"
+  tasks:
+    - name: Ensure Falco config directory exists
+      ansible.builtin.file:
+        path: /etc/falco/rules.d
+        state: directory
+        mode: "0755"
+
+    - name: Install custom Falco rules (SecurePay)
+      ansible.builtin.copy:
+        src: "{{ falco_rules_src }}"
+        dest: /etc/falco/rules.d/securepay.yml
+        mode: "0644"
+      notify: Restart falco
+
+    - name: Install Prometheus Node Exporter (container)
+      community.docker.docker_container:
+        name: node-exporter
+        image: prom/node-exporter:v1.8.2
+        state: started
+        restart_policy: unless-stopped
+        pid_mode: host
+        network_mode: host
+        volumes:
+          - /proc:/host/proc:ro
+          - /sys:/host/sys:ro
+          - /:/rootfs:ro
+        command:
+          - --path.procfs=/host/proc
+          - --path.sysfs=/host/sys
+          - --path.rootfs=/rootfs
+
+    - name: Ensure Falco is present (package or skip if k8s)
+      ansible.builtin.command: falco --version
+      register: falco_ver
+      changed_when: false
+      failed_when: false
+
+  handlers:
+    - name: Restart falco
+      ansible.builtin.service:
+        name: falco
+        state: restarted
+      when: falco_ver.rc == 0

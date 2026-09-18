@@ -1,0 +1,1 @@
+"""ISO 20022 — messages pacs/pain (wire/SCT core banking)."""

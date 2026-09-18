@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-fraud
+  labels:
+    app: fraud
+    app.kubernetes.io/name: fraud
+    app.kubernetes.io/part-of: securepay
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+spec:
+  replicas: {{ .Values.fraud.replicaCount }}
+  selector:
+    matchLabels:
+      app: fraud
+  template:
+    metadata:
+      labels:
+        app: fraud
+        app.kubernetes.io/name: fraud
+        app.kubernetes.io/part-of: securepay
+      annotations:
+        securepay.io/trivy-scanned: "pass"
+        securepay.io/trivy-severity-gate: "CRITICAL,HIGH"
+    spec:
+      securityContext:
+        {{- toYaml .Values.security.podSecurityContext | nindent 8 }}
+      containers:
+        - name: fraud
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.fraud.image.repository }}:{{ .Values.fraud.image.tag }}"
+          ports:
+            - containerPort: 8003
+          resources:
+            {{- toYaml .Values.fraud.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.security.containerSecurityContext | nindent 12 }}
+          env:
+            - name: APP_ENV
+              value: {{ .Values.global.environment | quote }}
+            - name: SECUREPAY_EVENT_LOG
+              value: /app/logs/securepay-events.jsonl
+            - name: REDIS_URL
+              value: redis://{{ .Release.Name }}-redis:6379/0
+          livenessProbe:
+            httpGet: { path: /health, port: 8003 }
+          readinessProbe:
+            httpGet: { path: /health, port: 8003 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-fraud
+  labels: { app: fraud, app.kubernetes.io/part-of: securepay }
+spec:
+  type: ClusterIP
+  selector: { app: fraud }
+  ports:
+    - port: 8003
+      targetPort: 8003

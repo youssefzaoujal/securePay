@@ -1,0 +1,43 @@
+# ArgoCD Application — GitOps complet (Phase 2).
+# L'état « désiré » vit dans le repo ; ArgoCD applique et auto-répare l'écart.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: securepay
+  namespace: argocd
+  labels:
+    environment: prod
+spec:
+  project: payments
+  source:
+    repoURL: https://github.com/<org>/securepay.git
+    path: infra/helm/securepay
+    targetRevision: v1.0.0                     # tag release, jamais main pour prod
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+      valuesObject:
+        global:
+          imageRegistry: ghcr.io/securepay
+        gateway:
+          image:
+            tag: v1.0.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: securepay
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff: { duration: 5s, factor: 2, maxDuration: 3m }
+  # Ces secrets (3DS, master key, DB) sont provisionnés par Vault/ESO hors applis.
+  ignoreDifferences:
+    - group: "*"
+      kind: Secret
+      jsonPointers: [/data]

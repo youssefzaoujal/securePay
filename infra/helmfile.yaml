@@ -1,0 +1,29 @@
+# Helmfile — GitOps léger multi-environnements.
+#   helmfile -e dev  apply
+#   helmfile -e prod apply
+#
+# Différences prod : values-prod.yaml + secrets injectés par Vault/ESO, tag image
+# résolu depuis la release (CI) — jamais :latest.
+environments:
+  dev:
+    values:
+      - infra/helm/securepay/values.yaml
+  prod:
+    values:
+      - infra/helm/securepay/values.yaml
+      - infra/helm/securepay/values-prod.yaml
+
+releases:
+  - name: securepay
+    namespace: securepay
+    createNamespace: true
+    chart: infra/helm/securepay
+    version: "{{ requiredEnv \"CHART_VERSION\" }}"
+    values:
+      - image:
+          tag: "{{ requiredEnv \"IMAGE_TAG\" }}"
+    secrets:
+      - name: securepay-secrets
+        provider: sops
+        files:
+          - infra/helm/secrets/secrets.prod.enc.yaml

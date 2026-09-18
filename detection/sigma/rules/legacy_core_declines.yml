@@ -1,0 +1,32 @@
+title: SecurePay - Legacy core banking declines
+id: 9c0e22bb-cobol-decl-001
+status: experimental
+description: |
+  Cluster of DECLINED decisions from the COBOL core (insufficient funds or DoS against the mainframe sim).
+  MITRE ATT&CK: T1499.003 — Application Exhaustion Flood (lab analogue).
+author: SecurePay SOC
+date: 2026/09/02
+tags:
+  - attack.t1499
+  - payment.security
+  - severity.medium
+logsource:
+  product: securepay
+  service: legacy-core
+detection:
+  selection_event:
+    event_type: legacy_core_decision
+    status: declined
+  condition: selection_event
+  timeframe: 2m
+  count: 8
+level: medium
+output:
+  title: "Rafale de refus COBOL (solde ou flood mainframe)"
+  mitre_attack:
+    - tactic: TA0040
+      technique: T1499.003
+      name: Application Exhaustion Flood
+  recommended_actions:
+    - Vérifier le rate-limit du wrapper
+    - Corréler avec carding

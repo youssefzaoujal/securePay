@@ -1,0 +1,67 @@
+# Sigma Rule: BOLA / IDOR Attack Detection
+# MITRE ATT&CK: T1213 - Data from Information Repositories
+# Description: Detects Broken Object Level Authorization attempts
+
+title: SecurePay - BOLA Attack Attempt Detected
+id: 9c8d7e6f-5a4b-3c2d-1e0f-a9b8c7d6e5f4
+status: experimental
+description: |
+  Detects potential BOLA/IDOR attacks where a merchant attempts to access
+  another merchant's transactions or resources.
+  Pattern: Access denied for cross-merchant resource access.
+  MITRE ATT&CK: T1213 (Data from Information Repositories)
+references:
+  - https://owasp.org/API-Security/editions/2023/en/roken-api1-broken-object-level-authorization/
+author: SecurePay SOC
+date: 2026/08/26
+tags:
+  - attack.bola
+  - attack.t1213
+  - api.security
+  - severity.high
+
+logsource:
+  product: securepay
+  service: gateway
+  category: access_event
+
+detection:
+  selection_event:
+    event_type: authorization_error
+
+  selection_bola:
+    error_type: object_level_authorization
+
+  condition: selection_event and selection_bola
+
+  timeframe: 10m
+  count: 3
+
+fields:
+  - source_ip
+  - merchant_id
+  - target_merchant_id
+  - resource_type
+  - resource_id
+  - http_method
+  - http_path
+  - status_code
+  - timestamp
+
+falsepositives:
+  - Merchant exploring API documentation
+
+level: high
+
+output:
+  title: "Possible BOLA Attack Detected"
+  description: "Merchant attempted to access resources belonging to another merchant"
+  mitre_attack:
+    - tactic: TA0009
+      technique: T1213
+      name: Data from Information Repositories
+  recommended_actions:
+    - Log full request details
+    - Alert merchant account
+    - Review access patterns
+    - Consider temporary API key revocation

@@ -1,0 +1,9 @@
+vendor: ncr
+family: "SelfServ / APTRA"
+notes: "Profil lab NCR — offsets documentés, pas le firmware réel."
+terminal_id_prefix: "NCR"
+timeout_ms: 8000
+pan_field: 2
+amount_field: 4
+pin_block: "ISO-0"
+mxa_device_code: "NCR-SS"

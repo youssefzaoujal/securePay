@@ -1,0 +1,1 @@
+"""Vault dynamic — secrets rotatifs, PKI interne, database roles."""

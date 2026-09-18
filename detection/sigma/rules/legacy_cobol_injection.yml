@@ -1,0 +1,32 @@
+title: SecurePay - Legacy COBOL injection blocked
+id: 9c0e22bb-cobol-inject-001
+status: experimental
+description: |
+  Detects rejected payloads aimed at the GnuCOBOL wrapper (command injection / malformed account id).
+  MITRE ATT&CK: T1059 — the wrapper never passes unsanitized argv to the binary.
+author: SecurePay SOC
+date: 2026/09/02
+tags:
+  - attack.t1059
+  - attack.execution
+  - payment.security
+  - severity.high
+logsource:
+  product: securepay
+  service: legacy-core
+detection:
+  selection_event:
+    event_type: legacy_injection_blocked
+  condition: selection_event
+  timeframe: 5m
+  count: 1
+level: high
+output:
+  title: "Injection vers le core COBOL bloquée par le wrapper"
+  mitre_attack:
+    - tactic: TA0002
+      technique: T1059
+      name: Command and Scripting Interpreter
+  recommended_actions:
+    - Vérifier que subprocess est appelé sans shell=True
+    - Bloquer l'IP source (SOAR)

@@ -1,0 +1,118 @@
+# =============================================================================
+# Falco Rules for SecurePay Runtime Security
+# Détecte les comportements anormaux dans les containers en production
+# =============================================================================
+
+# ─── DÉTECTION 1: Shell dans un container non autorisé ──────────
+- rule: Shell Spawned in Container
+  desc: Detect shell execution in containers (potential container escape or compromise)
+  condition: >
+    spawned_process
+    and container
+    and proc.name in (bash, sh, zsh, dash, ash, csh, ksh)
+    and not container.image.repository in (securepay/dev-tools)
+  output: >
+    Shell spawned in container
+    (user=%user.name container_id=%container.id container_name=%container.name
+    image=%container.image.repository shell=%proc.name parent=%proc.pname cmdline=%proc.cmdline)
+  priority: CRITICAL
+  tags: [container, shell, mitre_execution, T1059]
+  append: false
+
+# ─── DÉTECTION 2: Connexion réseau sortante suspecte ───────────
+- rule: Unexpected Outbound Connection
+  desc: Detect outbound connections from containers to unexpected destinations
+  condition: >
+    outbound
+    and container
+    and container.image.repository startswith securepay
+    and not fd.sip.name in (postgres, redis, keycloak)
+    and not fd.sip.name in (dns)
+    and not fd.sip.name startswith 10.
+  output: >
+    Unexpected outbound connection from SecurePay container
+    (container=%container.name connection=%fd.name proto=%fd.l4proto
+    dest_ip=%fd.sip dest_port=%fd.sport user=%user.name cmdline=%proc.cmdline)
+  priority: WARNING
+  tags: [container, network, mitre_exfiltration, T1048]
+
+# ─── DÉTECTION 3: Lecture de fichiers sensibles ─────────────────
+- rule: Sensitive File Access in Container
+  desc: Detect access to sensitive files inside containers
+  condition: >
+    open_read
+    and container
+    and container.image.repository startswith securepay
+    and (fd.name startswith /etc/shadow
+         or fd.name startswith /etc/passwd
+         or fd.name startswith /root/.ssh
+         or fd.name contains .env
+         or fd.name contains .pem
+         or fd.name contains .key)
+  output: >
+    Sensitive file accessed in container
+    (file=%fd.name container=%container.name user=%user.name
+    parent=%proc.pname cmdline=%proc.cmdline)
+  priority: WARNING
+  tags: [container, filesystem, mitre_credential_access, T1552]
+
+# ─── DÉTECTION 4: Modification de binaire système ──────────────
+- rule: Binary Modified in Container
+  desc: Detect modification of system binaries in containers
+  condition: >
+    open_write
+    and container
+    and container.image.repository startswith securepay
+    and (fd.name startswith /usr/bin
+         or fd.name startswith /usr/sbin
+         or fd.name startswith /bin)
+  output: >
+    System binary modified in container
+    (file=%fd.name container=%container.name user=%user.name
+    parent=%proc.pname cmdline=%proc.cmdline)
+  priority: CRITICAL
+  tags: [container, filesystem, mitre_persistence, T1542]
+
+# ─── DÉTECTION 5: Processus cryptominage ───────────────────────
+- rule: Crypto Miner Detected
+  desc: Detect cryptocurrency mining processes
+  condition: >
+    spawned_process
+    and container
+    and proc.name in (xmrig, minerd, minergate, ethminer, cpuminer)
+  output: >
+    Crypto miner detected in container
+    (process=%proc.name container=%container.name user=%user.name
+    cmdline=%proc.cmdline)
+  priority: CRITICAL
+  tags: [container, cryptomining, mitre_impact, T1496]
+
+# ─── DÉTECTION 6: Exécution de curl/wget sortant ───────────────
+- rule: Outbound HTTP Request from Container
+  desc: Detect curl/wget execution from SecurePay containers
+  condition: >
+    spawned_process
+    and container
+    and container.image.repository startswith securepay
+    and proc.name in (curl, wget, httpie)
+  output: >
+    HTTP client executed in SecurePay container
+    (process=%proc.name container=%container.name user=%user.name
+    cmdline=%proc.cmdline)
+  priority: NOTICE
+  tags: [container, network, mitre_exfiltration, T1048]
+
+# ─── DÉTECTION 7: Modification de la config Keycloak ───────────
+- rule: Keycloak Config Modified
+  desc: Detect modifications to Keycloak configuration
+  condition: >
+    open_write
+    and container
+    and container.name = securepay-keycloak
+    and fd.name contains /opt/keycloak
+  output: >
+    Keycloak configuration modified
+    (file=%fd.name container=%container.name user=%user.name
+    parent=%proc.pname cmdline=%proc.cmdline)
+  priority: CRITICAL
+  tags: [container, keycloak, mitre_persistence, T1543]

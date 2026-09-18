@@ -1,0 +1,62 @@
+# Sigma Rule: Fraud Score Anomaly
+# MITRE ATT&CK: T1657 - Financial Theft
+# Description: Detects unusual fraud scoring patterns
+
+title: SecurePay - Fraud Score Anomaly Detected
+id: 1a2b3c4d-5e6f-7a8b-9c0d-e1f2a3b4c5d6
+status: experimental
+description: |
+  Detects when the fraud detection engine produces unusually high scores,
+  indicating potential coordinated fraud or sophisticated attack.
+  MITRE ATT&CK: T1657 (Financial Theft)
+author: SecurePay SOC
+date: 2026/08/26
+tags:
+  - attack.fraud
+  - attack.t1657
+  - payment.security
+  - severity.critical
+
+logsource:
+  product: securepay
+  service: fraud-engine
+  category: fraud_event
+
+detection:
+  selection:
+    event_type: fraud_score
+    risk_score: ">= 0.85"
+
+  condition: selection
+
+  timeframe: 15m
+  count: 5
+
+fields:
+  - transaction_id
+  - merchant_id
+  - risk_score
+  - risk_level
+  - flags
+  - source_ip
+  - card_token
+  - amount
+  - timestamp
+
+falsepositives:
+  - High-value legitimate transactions
+
+level: critical
+
+output:
+  title: "Fraud Score Anomaly Detected"
+  description: "Multiple high-risk transactions detected in short timeframe"
+  mitre_attack:
+    - tactic: TA0040
+      technique: T1657
+      name: Financial Theft
+  recommended_actions:
+    - Pause merchant processing
+    - Review flagged transactions manually
+    - Alert fraud team
+    - Consider transaction reversals

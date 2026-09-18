@@ -1,0 +1,1 @@
+"""gRPC — protos internes basse latence (gateway↔payment↔fraud↔3DS)."""

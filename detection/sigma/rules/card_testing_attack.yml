@@ -1,0 +1,65 @@
+# Sigma Rule: Card Testing Attack Detection
+# MITRE ATT&CK: T1657 - Financial Theft
+# Description: Detects card-testing patterns: multiple payment attempts from same IP with high failure rate
+
+title: SecurePay - Card Testing Attack Detected
+id: 8a3b1c2d-4e5f-6a7b-8c9d-0e1f2a3b4c5d
+status: experimental
+description: |
+  Detects potential card-testing (carding) attacks against the SecurePay payment API.
+  Pattern: Many payment attempts from the same IP within a short window with high failure rate.
+  MITRE ATT&CK: T1657 (Financial Theft)
+references:
+  - https://attack.mitre.org/techniques/T1657/
+author: SecurePay SOC
+date: 2026/08/26
+tags:
+  - attack.carding
+  - attack.t1657
+  - payment.security
+  - severity.critical
+
+logsource:
+  product: securepay
+  service: payment-api
+  category: payment_event
+
+detection:
+  selection_event:
+    event_type: payment_attempt
+
+  selection_failure:
+    status: failed
+
+  condition: selection_event and selection_failure
+
+  timeframe: 5m
+  count: 10
+
+fields:
+  - source_ip
+  - merchant_id
+  - card_token
+  - amount
+  - status
+  - fraud_score
+  - timestamp
+
+falsepositives:
+  - Legitimate merchant with many test transactions (development)
+  - Payment gateway maintenance
+
+level: critical
+
+output:
+  title: "Possible Card-Testing Attack"
+  description: "High volume of failed payment attempts detected from a single source"
+  mitre_attack:
+    - tactic: TA0040
+      technique: T1657
+      name: Financial Theft
+  recommended_actions:
+    - Block source IP at WAF level
+    - Alert merchant account owner
+    - Review transaction for fraud
+    - Consider temporary merchant account suspension

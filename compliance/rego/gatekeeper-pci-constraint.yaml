@@ -1,0 +1,23 @@
+# ConstraintTemplate / Constraint GitOps (Gatekeeper/OPA) — reflet de pci.rego.
+# Annexes non exécutées par le lab : documentées comme artefact de déploiement.
+
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: pci-pod-hygiene
+spec:
+  crd:
+    spec:
+      names:
+        kind: PciPodHygiene
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package pci.hygiene
+
+        violation[{"msg": msg}] {
+          pod := input.review.object
+          labels := pod.metadata.labels
+          not labels["app"]
+          msg := sprintf("pod %v sans label 'app' (PCI 1.4)", [pod.metadata.name])
+        }

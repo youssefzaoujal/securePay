@@ -1,0 +1,1 @@
+"""HSM simulation — SoftHSM2 + PKCS#11 pour CAVV/clés."""
