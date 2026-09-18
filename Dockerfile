@@ -2,7 +2,7 @@
 # Multi-stage Dockerfile — SecurePay (non-root, least privilege)
 # =============================================================================
 
-FROM python:3.11-slim AS base
+FROM python:3.14-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -92,7 +92,7 @@ EXPOSE 9000
 CMD ["uvicorn", "dashboard:app", "--host", "0.0.0.0", "--port", "9000"]
 
 # --- Core banking simulator (GnuCOBOL) ---
-FROM python:3.11-slim-bookworm AS legacy-core
+FROM python:3.14-slim-bookworm AS legacy-core
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
