@@ -5,10 +5,37 @@
 [![SLSA](https://img.shields.io/badge/SLSA-provenance-5f67d8?logo=security&logoColor=white)](https://slsa.dev/)
 [![Security](https://img.shields.io/badge/security-DevSecOps-22c55e?logo=github&logoColor=white)](docs/security-controls.md)
 
+## The 30-second version
+
+SecurePay is a deliberately safe payment-security lab that connects a modern FastAPI payment platform to a simulated COBOL core, EMV 3DS network, SOC-as-Code detection plane, and hardened Kubernetes delivery path. It is built to answer one interview question with evidence: **what happens when a payment platform is attacked, degraded, or audited?**
+
+| See it | Proof in the repository |
+|--------|-------------------------|
+| A live command center | `python -m uvicorn dashboard:app --port 9000` |
+| A complete payment path | OAuth2 → tokenization → fraud → 3DS2 → payment → COBOL |
+| A real security loop | Attack simulator → Sigma → MITRE → SOAR block → TheHive case |
+| Production-minded delivery | GitHub Actions → SAST/SCA → SBOM → Cosign → GHCR → Kubernetes |
+
+**Recommended recruiter path:** open the [architecture poster](docs/assets/securepay-architecture.png), run the [five-minute lab](#démarrage-lab-windows--docker), then read the [attack lab](docs/attack-lab.md) and [security metrics](docs/SECURITY_METRICS.md).
+
 > **Ceci est une simulation. Aucune donnée de carte réelle n’est traitée.**
 > Utilisez uniquement des PAN de test (`4111111111111111`). Ce n’est pas un PSP, pas un acquéreur, pas un environnement PCI-DSS / CIS certifié.
 
 Flagship unique qui **fusionne** GuardianPay, SentinelPay, ThreatDetect, Home SOC et le scanner CSPM : une gateway de paiement que tu threat-model, que tu pipelines, que tu attaques toi-même, et dont les défenses **tirent vraiment**.
+
+### Why it stands out
+
+- **Systems thinking:** modern APIs, legacy COBOL, 3DS, ISO 8583, Kafka, gRPC, Vault and Kubernetes are connected by explicit trust boundaries.
+- **Security that executes:** BOLA, carding, SQLi, JWT replay and fail-closed chaos scenarios have both controls and detection evidence.
+- **Supply-chain discipline:** quality gates, Gitleaks, CodeQL, Semgrep, Trivy, CycloneDX, Cosign and SLSA are part of the delivery story.
+- **Banking realism without unsafe data:** test PANs only, CVV destruction, redacted JSON events, mTLS adapters and reproducible local services.
+
+### Read it like an engineer
+
+1. **Start with the [Command Center](#démarrage-lab-windows--docker)** to see the payment, SOC, ATM and platform surfaces.
+2. **Trigger `carding`** and watch the full detection-to-response chain in the SOC tab.
+3. **Inspect the [security controls](docs/security-controls.md)** and the [threat model](docs/threat-model.md) to see why each control exists.
+4. **Run the tests and audits** before trusting a claim: the repository favors measured evidence over marketing numbers.
 
 | Brief d’origine | Où c’est dans ce repo |
 |-----------------|------------------------|
